@@ -17,7 +17,7 @@ class CNN2D(nn.Module):
 
         self.conv_block1 = nn.Sequential(
             nn.Conv2d(in_channels=input_channels, out_channels=32, kernel_size=(3,3), stride=1, padding=1),
-            nn.BatchNorm2d(32),
+            nn.GroupNorm(1, 32),
             activation_module,
             nn.MaxPool2d(kernel_size=(2,2), stride=2, ceil_mode=True), # H,W_out = ceil(64/2)=32
             nn.Dropout(dropout_rate)
@@ -25,7 +25,7 @@ class CNN2D(nn.Module):
 
         self.conv_block2 = nn.Sequential(
             nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(3,3), stride=1, padding=1),
-            nn.BatchNorm2d(64),
+            nn.GroupNorm(1, 64),
             activation_module,
             nn.MaxPool2d(kernel_size=(2,2), stride=2, ceil_mode=True), # H,W_out = ceil(32/2)=16
             nn.Dropout(dropout_rate)
@@ -33,7 +33,7 @@ class CNN2D(nn.Module):
 
         self.conv_block3 = nn.Sequential(
             nn.Conv2d(in_channels=64, out_channels=512, kernel_size=(3,3), stride=1, padding=1),
-            nn.BatchNorm2d(512),
+            nn.GroupNorm(1, 512),
             activation_module,
             nn.MaxPool2d(kernel_size=(2,2), stride=2, ceil_mode=True), # H,W_out = ceil(16/2)=8
             nn.Dropout(dropout_rate)
@@ -41,7 +41,7 @@ class CNN2D(nn.Module):
         
         self.conv_block4 = nn.Sequential(
             nn.Conv2d(in_channels=512, out_channels=256, kernel_size=(3,3), stride=1, padding=1),
-            nn.BatchNorm2d(256),
+            nn.GroupNorm(1, 256),
             activation_module,
             nn.MaxPool2d(kernel_size=(2,2), stride=2, ceil_mode=True), # H,W_out = ceil(8/2)=4
             nn.Dropout(dropout_rate)
