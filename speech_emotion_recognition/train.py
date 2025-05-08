@@ -4,6 +4,8 @@ import torch.optim as optim
 import os
 import numpy as np
 from tqdm import tqdm
+import argparse
+from sklearn.model_selection import train_test_split # Added for splitting data
 
 # Project specific imports - assuming this script is run from the project root 
 # or the speech_emotion_recognition package is in PYTHONPATH.
@@ -109,10 +111,69 @@ class Trainer:
                 print(f"  New best model saved to {self.model_save_path} (Val Loss: {self.best_val_loss:.4f})")
         print("Training finished.")
 
+def parse_label_from_filename(filename, emotion_map):
+    """Helper function to extract label from CREMA-D filename."""
+    try:
+        parts = os.path.basename(filename).split('_')
+        if len(parts) > 2:
+            emotion_str = parts[2]
+            if emotion_str in emotion_map:
+                return emotion_map[emotion_str]
+    except Exception as e:
+        print(f"Error parsing filename {filename}: {e}")
+    return emotion_map.get('NEU', 0) # Default to NEU if parsing fails or emotion unknown
+
 def main():
+    parser = argparse.ArgumentParser(description="Train Speech Emotion Recognition Model")
+    parser.add_argument('--data_dir', type=str, default=config.DATA_DIR,
+                        help=f'Path to the dataset directory (default: {config.DATA_DIR} from config.py)')
+    args = parser.parse_args()
+
     set_seed(config.RANDOM_SEED)
     device = torch.device(config.DEVICE if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
+
+    # Use the data_dir from command line arguments or config
+    current_data_dir = args.data_dir
+
+    # --- Data Splitting --- 
+    print(f"Scanning data directory: {current_data_dir}")
+    all_wav_files = [os.path.join(current_data_dir, f) 
+                     for f in os.listdir(current_data_dir) 
+                     if f.endswith('.wav')]
+    
+    if not all_wav_files:
+        print(f"Error: No .wav files found in {current_data_dir}. Please check the path.")
+        return
+
+    print(f"Found {len(all_wav_files)} .wav files.")
+    
+    # Extract labels for stratification
+    all_labels = [parse_label_from_filename(f, config.EMOTION_LABELS) for f in all_wav_files]
+    
+    # First split: 70% Train+Val, 30% Test
+    train_val_files, test_files, train_val_labels, test_labels = train_test_split(
+        all_wav_files, all_labels, 
+        test_size=0.30, 
+        random_state=config.RANDOM_SEED, 
+        stratify=all_labels
+    )
+    
+    # Second split: Train vs Validation (from the 70% pool)
+    # Validation is 5% OF THE TRAIN_VAL SET
+    val_split_proportion = 0.05 # 5% of the train_val data for validation
+    train_files, val_files, train_labels, val_labels = train_test_split(
+        train_val_files, train_val_labels,
+        test_size=val_split_proportion, 
+        random_state=config.RANDOM_SEED, 
+        stratify=train_val_labels
+    )
+
+    print(f"Total files: {len(all_wav_files)}")
+    print(f"Training files: {len(train_files)}")
+    print(f"Validation files: {len(val_files)}")
+    print(f"Test files: {len(test_files)}")
+    # --- End Data Splitting ---
 
     # 1. Initialize AudioPreprocessor and FeatureExtractor
     audio_preprocessor = AudioPreprocessor(
@@ -124,38 +185,17 @@ def main():
     feature_extractor = PaperCombinedFeatureExtractor(
         sr=config.TARGET_SAMPLE_RATE,
         n_fft_1d=config.N_FFT_COMMON, hop_length_1d=config.HOP_LENGTH_COMMON,
-        n_mfcc_1d=config.N_MFCC, n_mels_for_1d_feat=config.N_MELS_FOR_1D_FEAT, # Ensure these sum up for 162 for Path A
+        n_mfcc_1d=config.N_MFCC, n_mels_for_1d_feat=config.N_MELS_FOR_1D_FEAT,
         n_fft_2d=config.N_FFT_IMG, hop_length_2d=config.HOP_LENGTH_IMG, n_mels_2d=config.N_MELS_IMG,
         img_height=config.IMG_HEIGHT, img_width=config.IMG_WIDTH, 
         log_spec_img=config.LOG_SPECTROGRAM_IMG, fmax_spec_img=config.UPPER_FREQ_LIMIT_KHZ * 1000 if config.UPPER_FREQ_LIMIT_KHZ else None
     )
 
-    # 2. Create DataLoaders (assuming a train/val split of data_dir is handled externally or use subset)
-    # For simplicity, using the same data_dir for train and val here.
-    # In a real scenario, you'd split your data into train and validation sets.
-    print("Preparing DataLoader(s)...")
-    # TODO: Implement proper train/validation split. For now, using full dataset for both.
-    # You might need to prepare separate train_dir and val_dir.
-    # As a quick test, one could use a subset for validation if a split is not ready.
-    # For now, let's assume config.DATA_DIR is the training data and we'll use it as val too.
-    
-    # Adjust N_MELS_FOR_1D_FEAT in config.py if needed to ensure 1D features are 162
-    # e.g. 1 (ZCR) + 12 (Chroma) + 13 (MFCC) + 1 (RMS) + X (MelSpec) = 162 => X = 135
-    # If config.N_MELS_FOR_1D_FEAT is not 135, the 1D features might not be 162.
-    # This should be checked against the PaperCombinedFeatureExtractor's logic.
-    
-    # Check for data directory
-    if not os.path.isdir(config.DATA_DIR):
-        print(f"Error: Data directory {config.DATA_DIR} not found. Please check config.py.")
-        print("As a placeholder, a dummy dataset might be created by data_loader/dataset.py if run directly with its __main__.")
-        print("For this train.py script to work, the actual data directory is expected.")
-        return
-    if not os.listdir(config.DATA_DIR):
-        print(f"Error: Data directory {config.DATA_DIR} is empty. Please populate it with .wav files.")
-        return
-        
+    # 2. Create DataLoaders using the split file lists and labels
+    print("Preparing DataLoaders...")
     train_loader = get_data_loader(
-        data_dir=config.DATA_DIR, 
+        file_paths_list=train_files, 
+        labels_list=train_labels,
         emotion_labels_map=config.EMOTION_LABELS,
         batch_size=config.BATCH_SIZE, 
         audio_preprocessor=audio_preprocessor, 
@@ -165,9 +205,9 @@ def main():
         num_workers=config.NUM_WORKERS, 
         pin_memory=config.PIN_MEMORY
     )
-    # Create a validation loader - using the same data for now, ideally a separate split
     val_loader = get_data_loader(
-        data_dir=config.DATA_DIR, # Replace with actual validation data path
+        file_paths_list=val_files, 
+        labels_list=val_labels,
         emotion_labels_map=config.EMOTION_LABELS,
         batch_size=config.BATCH_SIZE, 
         audio_preprocessor=audio_preprocessor, 
@@ -178,6 +218,9 @@ def main():
         pin_memory=config.PIN_MEMORY
     )
     print("DataLoaders created.")
+    
+    # Test loader can be created similarly if needed for final evaluation
+    # test_loader = get_data_loader(file_paths_list=test_files, labels_list=test_labels, ...)
 
     # 3. Initialize Model
     # Determine activation functions based on config or use defaults
