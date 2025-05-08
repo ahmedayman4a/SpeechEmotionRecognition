@@ -1,0 +1,23 @@
+# python gitignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+
+# pytorch
+*.pth
+*.pt
+*.pth.tar
+*.pt.tar
+
+# data folders
+data/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+.venv/
