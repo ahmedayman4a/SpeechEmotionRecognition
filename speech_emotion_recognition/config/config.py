@@ -68,11 +68,11 @@ MLP_DROPOUT_RATE = 0.5
 # Activation functions are set in model instantiation, can be nn.ReLU(inplace=True) or nn.SiLU()
 
 # 5. Training Parameters
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 LEARNING_RATE = 0.001
 NUM_EPOCHS = 50 # Or use early stopping
 OPTIMIZER = 'Adam' # 'Adam', 'SGD', etc.
-WEIGHT_DECAY = 1e-3
+WEIGHT_DECAY = 3e-4
 WARMUP_EPOCHS = 5
 
 # For DataLoader
