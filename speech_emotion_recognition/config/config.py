@@ -72,7 +72,8 @@ BATCH_SIZE = 32
 LEARNING_RATE = 0.001
 NUM_EPOCHS = 50 # Or use early stopping
 OPTIMIZER = 'Adam' # 'Adam', 'SGD', etc.
-WEIGHT_DECAY = 1e-5
+WEIGHT_DECAY = 1e-3
+WARMUP_EPOCHS = 5
 
 # For DataLoader
 NUM_WORKERS = 4
