@@ -45,8 +45,9 @@ class Trainer:
         self.device = device
         self.num_epochs = num_epochs
         self.model_save_dir = model_save_dir
-        self.checkpoint_filename = os.path.join(model_save_dir, "checkpoint_" + model_name)
-        self.best_model_filename = os.path.join(model_save_dir, "best_" + model_name)
+        # Store only base filenames, directory is handled by save_checkpoint
+        self.checkpoint_base_filename = "checkpoint_" + model_name 
+        self.best_model_base_filename = "best_" + model_name
         self.wandb_run = wandb_run # Added wandb run instance
         self.start_epoch = start_epoch # Added for resuming
         self.best_val_loss = best_val_loss # Added for resuming
@@ -176,7 +177,10 @@ class Trainer:
                 'optimizer': self.optimizer.state_dict(),
                 'scheduler': self.scheduler.state_dict(),
                 'best_val_loss': self.best_val_loss,
-            }, is_best, directory=self.model_save_dir, filename=self.checkpoint_filename, best_filename=self.best_model_filename)
+            }, is_best, 
+               directory=self.model_save_dir, 
+               filename=self.checkpoint_base_filename, # Pass base filename 
+               best_filename=self.best_model_base_filename) # Pass base filename
 
         print("Training finished.")
 
@@ -184,12 +188,13 @@ class Trainer:
         """Evaluate the model on the test set after loading the best checkpoint."""
         print("Starting testing phase...")
         # Load best model weights
-        if not os.path.exists(self.best_model_filename):
-            print(f"Error: Best model checkpoint not found at {self.best_model_filename}. Cannot run test.")
+        best_model_full_path = os.path.join(self.model_save_dir, self.best_model_base_filename)
+        if not os.path.exists(best_model_full_path):
+            print(f"Error: Best model checkpoint not found at {best_model_full_path}. Cannot run test.")
             return
         try:
-            print(f"Loading best model from: {self.best_model_filename}")
-            checkpoint = torch.load(self.best_model_filename, map_location=self.device)
+            print(f"Loading best model from: {best_model_full_path}")
+            checkpoint = torch.load(best_model_full_path, map_location=self.device)
             state_dict = checkpoint['state_dict']
             if list(state_dict.keys())[0].startswith('module.'):
                  state_dict = {k[len('module.'):]: v for k, v in state_dict.items()}
