@@ -6,5 +6,8 @@ librosa
 scikit-image
 scikit-learn
 tqdm
+wandb
+torchmetrics
+matplotlib
 
 webrtcvad
