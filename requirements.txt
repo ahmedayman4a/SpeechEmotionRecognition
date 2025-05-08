@@ -3,9 +3,7 @@ torchaudio
 numpy
 
 librosa
-scikit
 scikit-image
-
 scikit-learn
 tqdm
 
