@@ -150,6 +150,7 @@ class Trainer:
             # Prepare log dictionary for wandb
             log_dict = {
                 "epoch": epoch + 1,
+                "learning_rate": self.scheduler.get_last_lr()[0],
                 "train/epoch_loss": train_loss,
                 "val/epoch_loss": val_loss,
             }
@@ -281,7 +282,7 @@ def parse_label_from_filename(filename, emotion_map):
         print(f"Error parsing filename {filename}: {e}")
     return emotion_map.get('NEU', 0) # Default to NEU if parsing fails or emotion unknown
 
-def get_scheduler(optimizer, warmup_epochs, max_epochs, steps_per_epoch, min_lr_factor=0.01):
+def get_scheduler(optimizer, warmup_epochs, max_epochs, steps_per_epoch):
     """Creates a SequentialLR scheduler: Linear Warmup -> Cosine Annealing."""
     warmup_steps = warmup_epochs * steps_per_epoch
     main_steps = (max_epochs - warmup_epochs) * steps_per_epoch
@@ -292,7 +293,7 @@ def get_scheduler(optimizer, warmup_epochs, max_epochs, steps_per_epoch, min_lr_
     
     # Cosine Annealing requires T_max in steps
     scheduler_warmup = LambdaLR(optimizer, lr_lambda=warmup_lambda)
-    scheduler_cosine = CosineAnnealingLR(optimizer, T_max=main_steps, eta_min=config.LEARNING_RATE * min_lr_factor)
+    scheduler_cosine = CosineAnnealingLR(optimizer, T_max=main_steps, eta_min=config.LEARNING_RATE * config.MIN_LR_FACTOR)
     
     scheduler = SequentialLR(optimizer, schedulers=[scheduler_warmup, scheduler_cosine], milestones=[warmup_steps])
     return scheduler
