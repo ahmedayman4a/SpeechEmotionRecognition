@@ -103,9 +103,11 @@ class Trainer:
             self.train_metrics.update(preds, labels)
             total_loss += loss.item() # Log raw loss
 
-            lr = self.scheduler.get_last_lr()[0]
-            self.wandb_run.log({"train/batch_loss": loss.item(), "train/learning_rate": lr},
-                                step=(self.current_epoch * len(self.train_loader) + batch_idx))
+            # Log to wandb (maybe less frequently for loss/lr)
+            if batch_idx % 50 == 0: # Log every 50 batches
+                lr = self.scheduler.get_last_lr()[0]
+                self.wandb_run.log({"train/batch_loss": loss.item(), "train/learning_rate": lr},
+                                   step=(self.current_epoch * len(self.train_loader) + batch_idx))
             
             progress_bar.set_postfix(loss=loss.item(), lr=f"{self.scheduler.get_last_lr()[0]:.1e}")
 
