@@ -301,7 +301,7 @@ def main():
     parser.add_argument('--wandb_project', type=str, default="SpeechEmotionRecognition",
                         help='Weights & Biases project name')
     parser.add_argument('--wandb_name', type=str, default=None,
-                        help='Weights & Biases run name (defaults to auto-generated)')                 
+                        help='Weights & Biases run name (defaults to auto-generated)')
     args = parser.parse_args()
 
     set_seed(config.RANDOM_SEED)
@@ -309,13 +309,16 @@ def main():
     print(f"Using device: {device}")
 
     # --- Initialize Weights & Biases ---
+    # Create a dictionary of uppercase config variables for wandb logging
+    wandb_config_dict = {k: getattr(config, k) for k in dir(config) if k.isupper() and not k.startswith('__')}
+
     wandb_run = wandb.init(
         project=args.wandb_project,
         name=args.wandb_name, # Optional: specify a run name
-        config=vars(config) # Log configuration parameters
+        config=wandb_config_dict # Log filtered configuration parameters
     )
-    # Add command line args to wandb config as well
-    wandb.config.update(vars(args))
+    # Add command line args to wandb config as well (filter out None values if desired)
+    wandb.config.update({k: v for k, v in vars(args).items() if v is not None})
     print(f"Wandb initialized. Run page: {wandb_run.get_url()}")
 
     # Use the data_dir from command line arguments or config
