@@ -89,7 +89,7 @@ class PaperCombinedFeatureExtractor:
                  n_mfcc_1d=13, n_mels_for_1d_feat=135, # 1+12+13+1+135 = 162 features
                  # Params for 2D image features
                  n_fft_2d=1024, hop_length_2d=256, n_mels_2d=64, 
-                 img_height=64, img_width=64, log_spec_img=True, fmax_spec_img=10000):
+                 log_spec_img=True, fmax_spec_img=10000): # Removed img_height, img_width
         
         self.sr = sr
         # 1D feature params
@@ -101,9 +101,9 @@ class PaperCombinedFeatureExtractor:
         # 2D image feature params
         self.n_fft_2d = n_fft_2d
         self.hop_length_2d = hop_length_2d
-        self.n_mels_2d = n_mels_2d
-        self.img_height = img_height
-        self.img_width = img_width
+        self.n_mels_2d = n_mels_2d # This is the height of the spectrogram
+        # self.img_height = img_height # Removed
+        # self.img_width = img_width   # Removed
         self.log_spec_img = log_spec_img
         self.fmax_spec_img = fmax_spec_img if fmax_spec_img is not None else sr // 2
 
@@ -151,14 +151,12 @@ class PaperCombinedFeatureExtractor:
             waveform_tensor = waveform_tensor.unsqueeze(0) # Ensure [1, T]
         
         # Use torchaudio for Mel spectrogram generation
-        mel_spec_2d = self.mel_spectrogram_transform_2d(waveform_tensor.squeeze(0)) # Expects [T]
+        mel_spec_2d = self.mel_spectrogram_transform_2d(waveform_tensor.squeeze(0)) # Expects [T], output [n_mels_2d, time_frames]
 
         if self.log_spec_img:
             mel_spec_2d = torch.log(mel_spec_2d + 1e-6)
 
         # Normalize to [0, 1] - this is a common practice for images
-        # Paper: "Scale pixel values from [0, 255] to [0, 1]" - implies initial image was uint8
-        # Here, we have float tensor. Min-max scale to [0,1]
         min_val = mel_spec_2d.min()
         max_val = mel_spec_2d.max()
         if max_val > min_val:
@@ -166,23 +164,20 @@ class PaperCombinedFeatureExtractor:
         else: # Avoid division by zero if flat
             mel_spec_2d = torch.zeros_like(mel_spec_2d)
             
-        # Resize to target IMG_HEIGHT x IMG_WIDTH (e.g., 64x64)
-        # Convert to numpy for skimage.transform.resize
-        # Input for resize: (H, W) or (H, W, C)
-        mel_spec_np = mel_spec_2d.cpu().numpy() # Shape (n_mels_2d, time_frames)
-        
-        # skimage.transform.resize expects image_ndim >= channel_ndim.
-        # (H, W) is fine. Output is float64 by default.
-        resized_spec_np = skimage.transform.resize(
-            mel_spec_np, 
-            (self.img_height, self.img_width), 
-            anti_aliasing=True, 
-            mode='reflect' # or other mode like 'edge', 'constant'
-        )
-        
+        # RESIZING REMOVED
+        # mel_spec_np = mel_spec_2d.cpu().numpy() 
+        # resized_spec_np = skimage.transform.resize(
+        #     mel_spec_np, 
+        #     (self.img_height, self.img_width), 
+        #     anti_aliasing=True, 
+        #     mode='reflect'
+        # )
+        # resized_spec_tensor = torch.tensor(resized_spec_np, dtype=torch.float32).unsqueeze(0)
+        # return resized_spec_tensor # Shape [1, img_height, img_width]
+
         # Add channel dimension: (1, H, W) for PyTorch CNNs
-        resized_spec_tensor = torch.tensor(resized_spec_np, dtype=torch.float32).unsqueeze(0)
-        return resized_spec_tensor # Shape [1, img_height, img_width]
+        # H is n_mels_2d, W is variable (time_frames)
+        return mel_spec_2d.unsqueeze(0) # Shape [1, n_mels_2d, time_frames]
 
     def __call__(self, waveform_batch_preprocessed):
         """ 
@@ -194,7 +189,7 @@ class PaperCombinedFeatureExtractor:
         Returns:
             Tuple[torch.Tensor, torch.Tensor]: 
                 - batch_features_1d: (batch_size, 1, 162)
-                - batch_features_2d: (batch_size, 1, img_height, img_width)
+                - batch_features_2d: (batch_size, 1, n_mels_2d, variable_time_frames)
         """
         if waveform_batch_preprocessed.ndim == 3 and waveform_batch_preprocessed.shape[1] == 1:
             waveform_batch_mono = waveform_batch_preprocessed.squeeze(1) # [batch_size, time]
@@ -237,23 +232,36 @@ if __name__ == '__main__':
         sr=sr_test,
         n_mfcc_1d=13, 
         n_mels_for_1d_feat=135, # This makes it 1+12+13+1+135 = 162
-        img_height=64, img_width=64, n_mels_2d=64, fmax_spec_img=8000 # fmax for 16k sr is 8k
+        n_mels_2d=64, # img_height and img_width removed
+        fmax_spec_img=8000 
     )
 
     features_1d_batch, features_2d_batch = paper_feat_extractor(dummy_waveforms_batch_tensor)
 
     print(f"Input waveform batch shape: {dummy_waveforms_batch_tensor.shape}")
     print(f"Output 1D features batch shape: {features_1d_batch.shape}") # Expected: [batch_s, 1, 162]
-    print(f"Output 2D features batch shape: {features_2d_batch.shape}") # Expected: [batch_s, 1, 64, 64]
+    print(f"Output 2D features batch shape: {features_2d_batch.shape}") # Expected: [batch_s, 1, 64, VariableWidth]
 
     assert features_1d_batch.shape == (batch_s, 1, 162), f"Error in 1D feature shape! Got {features_1d_batch.shape}"
-    assert features_2d_batch.shape == (batch_s, 1, 64, 64), f"Error in 2D feature shape! Got {features_2d_batch.shape}"
+    # For 2D, check batch, channels, and height (n_mels_2d). Width is variable.
+    assert features_2d_batch.shape[0] == batch_s, f"Error in 2D feature batch size! Got {features_2d_batch.shape[0]}"
+    assert features_2d_batch.shape[1] == 1, f"Error in 2D feature channels! Got {features_2d_batch.shape[1]}"
+    assert features_2d_batch.shape[2] == 64, f"Error in 2D feature height (n_mels_2d)! Got {features_2d_batch.shape[2]}"
     print("PaperCombinedFeatureExtractor test completed.")
 
     # Test the original TorchaudioFeatureExtractor (renamed from FeatureExtractor)
     print("\nTesting TorchaudioFeatureExtractor (MFCCs with deltas)...")
     # Example: 20 MFCCs + deltas + delta-deltas = 60 features
-    ta_feat_extractor = TorchaudioFeatureExtractor(sample_rate=sr_test, feature_type='mfcc', n_mfcc=20, delta_order=2)
+    # Adjust n_mels and n_fft here to avoid the warning in the test.
+    # n_freqs = 512 // 2 + 1 = 257. n_mels=60 is fine for n_mfcc=20.
+    ta_feat_extractor = TorchaudioFeatureExtractor(
+        sample_rate=sr_test, 
+        feature_type='mfcc', 
+        n_mfcc=20, 
+        delta_order=2,
+        n_mels=60, # Was default 128, changed for test
+        n_fft=512  # Was default 400, changed for test
+    )
     # Ensure input is [B, T]
     if dummy_waveforms_batch_tensor.ndim == 3 and dummy_waveforms_batch_tensor.shape[1] == 1:
         test_waveforms_for_ta = dummy_waveforms_batch_tensor.squeeze(1)
