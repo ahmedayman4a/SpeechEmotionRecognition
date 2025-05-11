@@ -366,7 +366,6 @@ def main():
         n_fft_1d=config.N_FFT_COMMON, hop_length_1d=config.HOP_LENGTH_COMMON,
         n_mfcc_1d=config.N_MFCC, n_mels_for_1d_feat=config.N_MELS_FOR_1D_FEAT,
         n_fft_2d=config.N_FFT_IMG, hop_length_2d=config.HOP_LENGTH_IMG, n_mels_2d=config.N_MELS_IMG,
-        img_height=config.IMG_HEIGHT, img_width=config.IMG_WIDTH, 
         log_spec_img=config.LOG_SPECTROGRAM_IMG, fmax_spec_img=config.UPPER_FREQ_LIMIT_KHZ * 1000 if config.UPPER_FREQ_LIMIT_KHZ else None
     )
 
@@ -398,12 +397,18 @@ def main():
     # --- Model --- 
     model = CombinedModel(
         num_classes=config.NUM_CLASSES,
-        cnn1d_num_features_input_dim=config.CNN1D_NUM_FEATURES_DIM,
-        cnn2d_img_height=config.CNN2D_IMG_HEIGHT,
-        cnn2d_img_width=config.CNN2D_IMG_WIDTH,
-        dropout_rate_cnn=config.CNN_DROPOUT_RATE,
-        dropout_rate_mlp=config.MLP_DROPOUT_RATE
-        # Can pass activation_module_cnn/mlp=nn.SiLU() here if desired
+        cnn1d_input_channels=config.CNN1D_INPUT_CHANNELS,
+        cnn1d_num_features_dim=config.CNN1D_NUM_FEATURES_DIM,
+        cnn1d_initial_out_channels=config.CNN1D_INITIAL_OUT_CHANNELS,
+        cnn1d_block_channels=config.CNN1D_BLOCK_CHANNELS,
+        cnn1d_output_features=config.CNN1D_OUTPUT_FEATURES,
+        cnn2d_input_channels=config.CNN2D_INPUT_CHANNELS,
+        cnn2d_initial_out_channels=config.CNN2D_INITIAL_OUT_CHANNELS,
+        cnn2d_block_channels=config.CNN2D_BLOCK_CHANNELS,
+        cnn2d_output_features=config.CNN2D_OUTPUT_FEATURES,
+        cnn_dropout_rate=config.CNN_DROPOUT_RATE,
+        mlp_dropout_rate=config.MLP_DROPOUT_RATE,
+        activation_name='relu'
     ).to(device)
     print("Model initialized.")
     wandb.watch(model, log='all', log_freq=100) # Log model gradients/parameters

@@ -45,20 +45,26 @@ SPECTROGRAM_TYPE = 'melspectrogram' # 'melspectrogram' or 'spectrogram'
 N_MELS_IMG = 64          # Number of Mel bands for the 2D image (becomes height)
 N_FFT_IMG = 1024         # FFT window size for 2D spectrogram image
 HOP_LENGTH_IMG = 256     # Hop length for 2D spectrogram image (affects width)
-IMG_HEIGHT = 64          # Target height of the spectrogram image
-IMG_WIDTH = 64           # Target width of the spectrogram image (may require padding/truncating time axis)
+IMG_HEIGHT = 64          # Target height of the spectrogram image (same as N_MELS_IMG)
+# IMG_WIDTH = 64           # REMOVED: Target width is no longer fixed, spectrogram width is variable
 LOG_SPECTROGRAM_IMG = True # Apply log to the spectrogram image values
 UPPER_FREQ_LIMIT_KHZ = 10 # As per paper for spectrogram images (10000 Hz)
 
 # 4. Model Parameters
-# CNN1D specific (defaults match CombinedModel if not overridden there)
+# CNN1D specific
 CNN1D_INPUT_CHANNELS = 1
 CNN1D_NUM_FEATURES_DIM = 162 # This must match the output of 1D feature extraction
+CNN1D_INITIAL_OUT_CHANNELS = 64 # Initial channels after the stem conv
+CNN1D_BLOCK_CHANNELS = [64, 128, 256, 512] # Channels for each ResNet block stage in CNN1D
+CNN1D_OUTPUT_FEATURES = 256  # Output features from ResNet-based CNN1D, set in CombinedModel constructor
 
-# CNN2D specific (defaults match CombinedModel if not overridden there)
+# CNN2D specific
 CNN2D_INPUT_CHANNELS = 1
-CNN2D_IMG_HEIGHT = IMG_HEIGHT # Should match the processed image height
-CNN2D_IMG_WIDTH = IMG_WIDTH   # Should match the processed image width
+CNN2D_IMG_HEIGHT = N_MELS_IMG # Should match the processed image height (n_mels_2d)
+# CNN2D_IMG_WIDTH = IMG_WIDTH # REMOVED: Width is variable
+CNN2D_INITIAL_OUT_CHANNELS = 32 # Initial channels after the stem conv, paper: 32
+CNN2D_BLOCK_CHANNELS = [32, 64, 128, 256] # Channels for each ResNet block stage in CNN2D. Paper used [32, 64, 512, 256]
+CNN2D_OUTPUT_FEATURES = 512 # Output features from ResNet-based CNN2D (after GAP), set in CombinedModel constructor
 
 # Shared for CNNs in CombinedModel
 CNN_DROPOUT_RATE = 0.3
