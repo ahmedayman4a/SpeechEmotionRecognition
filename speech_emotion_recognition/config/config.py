@@ -57,12 +57,12 @@ FMAX_IMG = 8000          # Maximum frequency for Mel spectrogram calculation (sr
 
 # 5. Training Parameters
 BATCH_SIZE = 256
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.001
 NUM_EPOCHS = 150
 OPTIMIZER = 'Adam' # 'Adam', 'SGD', etc.
 WEIGHT_DECAY = 5e-4
 WARMUP_EPOCHS = 5
-MIN_LR_FACTOR = 0.001
+MIN_LR_FACTOR = 0.0001
 
 # For DataLoader
 NUM_WORKERS = 4
@@ -107,8 +107,8 @@ MODEL_PARAMS = {
     'cnn2d_input_channels': 1,
     
     # Configuration for new ResNet-like models
-    'cnn1d_initial_out_channels': 32, 
-    'cnn2d_initial_out_channels': 64,
+    'cnn1d_initial_out_channels': 16, 
+    'cnn2d_initial_out_channels': 16,
     
     # Dropout Rates
     'cnn_dropout_rate': 0.4, 
