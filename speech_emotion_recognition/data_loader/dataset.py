@@ -121,26 +121,32 @@ def create_collate_fn(preprocessor: AudioPreprocessor,
             print(f"Error during audio preprocessing: {e}")
             # Handle error: skip batch or return dummy data? Returning None for now.
             print(f"Problematic filenames (sample): {filenames[:2]}")
-            return None, None, None, None # Indicate error
+            return None, None, None # Indicate error (removed features_1d placeholder)
 
         # Handle potentially empty waveforms after VAD in preprocessor
         if padded_waveforms is None or padded_waveforms.numel() == 0:
             # print("Warning: Skipping batch due to empty waveforms after preprocessing (VAD?).")
-            return None, None, None, None # Indicate empty batch
+            return None, None, None # Indicate empty batch
 
-        # 2. Extract features using the provided feature extractor instance
-        # The feature extractor handles dataset normalization internally if configured.
-        # Output: features_1d [B, D_1d], features_2d [B, C_img, H, W]
+        # 2. Extract ONLY 2D features using the provided feature extractor instance
+        # Output: features_2d [B, C_img, H, W]
         try:
-            features_1d, features_2d = feature_extractor(padded_waveforms)
+            # Call the feature extractor's specific method or adapt its __call__ if needed
+            # Assuming PaperCombinedFeatureExtractor has methods like _extract_2d_image_features
+            # Or modify its __call__ to optionally return only 2D features
+            # For simplicity, let's assume we call a modified/specific method if available
+            # If __call__ still returns both, just ignore the first output.
+            _, features_2d = feature_extractor(padded_waveforms) 
+            # OR if __call__ is modified: features_2d = feature_extractor(padded_waveforms, extract_1d=False)
+
         except Exception as e:
-             print(f"Error during feature extraction: {e}")
+             print(f"Error during 2D feature extraction: {e}")
              print(f"Padded waveform shape: {padded_waveforms.shape}")
              print(f"Problematic filenames (sample): {filenames[:2]}")
-             return None, None, None, None
+             return None, None, None # Indicate error
         
         # --- Apply Spectrogram Augmentation (SpecAugment, only during training) ---
-        if spec_augment is not None: # Check if transform was initialized
+        if spec_augment is not None: 
             # SpecAugment expects [.., freq, time]
             features_2d_permuted = features_2d.permute(0, 1, 3, 2) # [B, C, W, H]
             # Apply SpecAugment
@@ -149,7 +155,8 @@ def create_collate_fn(preprocessor: AudioPreprocessor,
             features_2d = features_2d_augmented.permute(0, 1, 3, 2)
             # print("Applied SpecAugment") # Debug print
 
-        return features_1d, features_2d, labels, filenames
+        # Return only 2D features, labels, and filenames
+        return features_2d, labels, filenames
 
     return collate_fn
 
@@ -276,7 +283,7 @@ if __name__ == '__main__':
 
     try:
         # Test with is_training = False (no augmentation)
-        print("\n--- Testing DataLoader (is_training=False) ---")
+        print("\n--- Testing DataLoader (is_training=False, 2D Only) ---")
         test_dataloader_noaug = get_data_loader(
             file_paths_list=test_file_paths,
             labels_list=test_labels,
@@ -294,13 +301,14 @@ if __name__ == '__main__':
             if batch_data[0] is None: # Skip if collate_fn returned error
                 print(f"Skipping batch {i+1} due to preprocessing/feature extraction error.")
                 continue
-            feats_1d, feats_2d, lbls, fnames = batch_data
-            print(f"Batch {i+1} (no aug): 1D={feats_1d.shape}, 2D={feats_2d.shape}, Lbls={lbls}")
+            # Unpack only 2D features now
+            feats_2d, lbls, fnames = batch_data 
+            print(f"Batch {i+1} (no aug): 2D={feats_2d.shape}, Lbls={lbls}")
             # Add assertions if needed
         print("No-Augmentation DataLoader test completed.")
 
         # Test with is_training = True (augmentation)
-        print("\n--- Testing DataLoader (is_training=True) ---")
+        print("\n--- Testing DataLoader (is_training=True, 2D Only) ---")
         AUG_CONFIG_TEST['apply_specaugment'] = True # Enable for this test
         test_dataloader_aug = get_data_loader(
             file_paths_list=test_file_paths,
@@ -319,8 +327,9 @@ if __name__ == '__main__':
             if batch_data[0] is None:
                 print(f"Skipping batch {i+1} due to preprocessing/feature extraction error.")
                 continue
-            feats_1d, feats_2d, lbls, fnames = batch_data
-            print(f"Batch {i+1} (aug): 1D={feats_1d.shape}, 2D={feats_2d.shape}, Lbls={lbls}")
+            # Unpack only 2D features now
+            feats_2d, lbls, fnames = batch_data 
+            print(f"Batch {i+1} (aug): 2D={feats_2d.shape}, Lbls={lbls}")
             # Add assertions if needed
         print("Augmentation DataLoader test completed.")
         

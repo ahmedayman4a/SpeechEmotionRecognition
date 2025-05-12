@@ -85,13 +85,12 @@ class Trainer:
         self.train_metrics.reset()
         
         progress_bar = tqdm(self.train_loader, desc=f"Epoch {self.current_epoch+1}/{self.num_epochs} Training", leave=False)
-        for batch_idx, (features_1d, features_2d, labels, _) in enumerate(progress_bar):
-            features_1d = features_1d.to(self.device)
+        for batch_idx, (features_2d, labels, _) in enumerate(progress_bar):
             features_2d = features_2d.to(self.device)
             labels = labels.to(self.device)
 
             self.optimizer.zero_grad()
-            outputs = self.model(features_1d, features_2d)
+            outputs = self.model(features_2d)
             loss = self.criterion(outputs, labels)
             loss.backward()
             self.optimizer.step()
@@ -121,12 +120,11 @@ class Trainer:
         
         progress_bar = tqdm(self.val_loader, desc=f"Epoch {self.current_epoch+1}/{self.num_epochs} Validation", leave=False)
         with torch.no_grad():
-            for batch_idx, (features_1d, features_2d, labels, _) in enumerate(progress_bar):
-                features_1d = features_1d.to(self.device)
+            for batch_idx, (features_2d, labels, _) in enumerate(progress_bar):
                 features_2d = features_2d.to(self.device)
                 labels = labels.to(self.device)
 
-                outputs = self.model(features_1d, features_2d)
+                outputs = self.model(features_2d)
                 loss = self.criterion(outputs, labels)
 
                 # Update metrics
@@ -211,12 +209,11 @@ class Trainer:
         
         progress_bar = tqdm(self.test_loader, desc="Testing", leave=False)
         with torch.no_grad():
-            for batch_idx, (features_1d, features_2d, labels, _) in enumerate(progress_bar):
-                features_1d = features_1d.to(self.device)
+            for batch_idx, (features_2d, labels, _) in enumerate(progress_bar):
                 features_2d = features_2d.to(self.device)
                 labels = labels.to(self.device)
 
-                outputs = self.model(features_1d, features_2d)
+                outputs = self.model(features_2d)
                 loss = self.criterion(outputs, labels)
 
                 # Update metrics
@@ -446,8 +443,8 @@ def main():
         activation_name=config.MODEL_PARAMS['activation_name'],
         layers=config.MODEL_PARAMS['layers']
     ).to(device)
-    print("Model initialized.")
-    wandb.watch(model, log='all', log_freq=100) # Log model gradients/parameters
+    print("Model initialized (CNN2D Only).")
+    wandb.watch(model, log='all', log_freq=100)
 
     # --- Optimizer & Loss --- 
     if config.OPTIMIZER.lower() == 'adam':
