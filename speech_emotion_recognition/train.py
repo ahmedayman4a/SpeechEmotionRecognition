@@ -38,14 +38,13 @@ class Trainer:
         self.model = model
         self.train_loader = train_loader
         self.val_loader = val_loader
-        self.test_loader = test_loader # Store test loader
+        self.test_loader = test_loader
         self.optimizer = optimizer
-        self.scheduler = scheduler # Added scheduler
+        self.scheduler = scheduler
         self.criterion = criterion
         self.device = device
         self.num_epochs = num_epochs
         self.model_save_dir = model_save_dir
-        # Store only base filenames, directory is handled by save_checkpoint
         self.checkpoint_base_filename = "checkpoint_" + model_name 
         self.best_model_base_filename = "best_" + model_name
         self.wandb_run = wandb_run # Added wandb run instance
@@ -88,7 +87,7 @@ class Trainer:
         progress_bar = tqdm(self.train_loader, desc=f"Epoch {self.current_epoch+1}/{self.num_epochs} Training", leave=False)
         for batch_idx, (features_1d, features_2d, labels, _) in enumerate(progress_bar):
             if batch_idx == 0:
-                print("1D shape:", features_1d.shape, "2D shape:", features_2d.shape, "labels:", labels)
+                print("1D shape:", features_1d.shape, "2D shape:", features_2d.shape)
                 print("1D stats:", features_1d.mean().item(), features_1d.std().item())
                 print("2D stats:", features_2d.mean().item(), features_2d.std().item())
                 assert not torch.isnan(features_1d).any(), "NaN in 1D features"
@@ -132,7 +131,7 @@ class Trainer:
         with torch.no_grad():
             for batch_idx, (features_1d, features_2d, labels, _) in enumerate(progress_bar):
                 if batch_idx == 0:
-                    print("1D shape:", features_1d.shape, "2D shape:", features_2d.shape, "labels:", labels)
+                    print("1D shape:", features_1d.shape, "2D shape:", features_2d.shape)
                     print("1D stats:", features_1d.mean().item(), features_1d.std().item())
                     print("2D stats:", features_2d.mean().item(), features_2d.std().item())
                     assert not torch.isnan(features_1d).any(), "NaN in 1D features"
@@ -362,9 +361,9 @@ def main():
     
     # Train/Val/Test Split
     train_val_files, test_files, train_val_labels, test_labels = train_test_split(
-        all_wav_files, all_labels, test_size=0.30, random_state=config.RANDOM_SEED, stratify=all_labels
+        all_wav_files, all_labels, test_size=0.15, random_state=config.RANDOM_SEED, stratify=all_labels
     )
-    val_split_proportion = 0.05 
+    val_split_proportion = 0.15
     train_files, val_files, train_labels, val_labels = train_test_split(
         train_val_files, train_val_labels, test_size=val_split_proportion, random_state=config.RANDOM_SEED, stratify=train_val_labels
     )
