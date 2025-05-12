@@ -94,8 +94,8 @@ AUGMENTATION = {
     'apply_specaugment': True,
     'specaugment_freq_mask_param': 27, # Max width of frequency mask (paper default: 27 for LibriSpeech)
     'specaugment_time_mask_param': 70, # Max width of time mask (paper default: 70 for LibriSpeech)
-    'specaugment_num_freq_masks': 3,   # Number of frequency masks
-    'specaugment_num_time_masks': 3    # Number of time masks
+    'specaugment_num_freq_masks': 2,   # Number of frequency masks
+    'specaugment_num_time_masks': 2    # Number of time masks
 }
 
 # --- Model Config ---
