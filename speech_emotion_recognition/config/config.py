@@ -60,7 +60,7 @@ BATCH_SIZE = 256
 LEARNING_RATE = 0.0005
 NUM_EPOCHS = 150
 OPTIMIZER = 'Adam' # 'Adam', 'SGD', etc.
-WEIGHT_DECAY = 5e-4
+WEIGHT_DECAY = 1e-4
 WARMUP_EPOCHS = 5
 MIN_LR_FACTOR = 0.0001
 
@@ -81,12 +81,12 @@ LOG_DIR = "logs"
 # --- Dataset Normalization Stats ---
 # Path to the file where dataset mean/std are saved
 # Run utils/dataset_stats.py to generate this file
-DATASET_STATS_FILE = os.path.join(os.path.dirname(__file__), 'dataset_stats.pt')
-
+# DATASET_STATS_FILE = os.path.join(os.path.dirname(__file__), 'dataset_stats.pt')
+DATASET_STATS_FILE = None
 # --- Augmentation Config ---
 AUGMENTATION = {
     'apply_noise': True,
-    'noise_factor': 0.01, # Amount of Gaussian noise to add (relative to std deviation)
+    'noise_factor': 0.005, # Amount of Gaussian noise to add (relative to std deviation)
     
     'apply_volume': True,
     'volume_range': (0.7, 1.3), # Randomly scale volume between 80% and 120%
