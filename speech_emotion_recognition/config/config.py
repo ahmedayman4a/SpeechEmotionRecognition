@@ -108,12 +108,12 @@ MODEL_PARAMS = {
     
     # Configuration for new ResNet-like models
     'cnn1d_initial_out_channels': 16, 
-    'cnn2d_initial_out_channels': 16,
+    'cnn2d_initial_out_channels': 32,
     
     # Dropout Rates
-    'cnn_dropout_rate': 0.4, 
+    'cnn_dropout_rate': 0.3, 
     'mlp_hidden_units': 128, # Hidden units in the final MLP head
-    'mlp_dropout_rate': 0.6,
+    'mlp_dropout_rate': 0.5,
     
     'activation_name': 'relu', # 'relu' or 'silu' (swish)
     'layers': [2, 2, 2, 2]
