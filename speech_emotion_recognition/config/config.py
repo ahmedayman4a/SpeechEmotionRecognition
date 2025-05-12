@@ -70,10 +70,10 @@ CNN2D_BLOCK_CHANNELS = [32, 64, 512, 256] # Channels for each ResNet block stage
 CNN2D_OUTPUT_FEATURES = 256 # Output features from ResNet-based CNN2D 
 
 # Shared for CNNs in CombinedModel
-CNN_DROPOUT_RATE = 0.3
+CNN_DROPOUT_RATE = 0.4
 
 # MLP Head in CombinedModel
-MLP_DROPOUT_RATE = 0.5
+MLP_DROPOUT_RATE = 0.6
 # Activation functions are set in model instantiation, can be nn.ReLU(inplace=True) or nn.SiLU()
 
 # 5. Training Parameters
@@ -81,9 +81,9 @@ BATCH_SIZE = 256
 LEARNING_RATE = 0.001
 NUM_EPOCHS = 150 # Or use early stopping
 OPTIMIZER = 'Adam' # 'Adam', 'SGD', etc.
-WEIGHT_DECAY = 1e-4
+WEIGHT_DECAY = 5e-4
 WARMUP_EPOCHS = 5
-MIN_LR_FACTOR = 0.001
+MIN_LR_FACTOR = 0.0001
 
 # For DataLoader
 NUM_WORKERS = 4
