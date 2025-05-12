@@ -91,7 +91,7 @@ class AudioPreprocessor:
         
         # Convert back to tensor, normalize from int16 range if needed
         # Ensure the numpy array is writable before converting
-        voiced_waveform = torch.from_numpy(voiced_audio_np.copy()).float()
+        voiced_waveform = torch.from_numpy(voiced_audio_np).float()
         if voiced_waveform.max() > 1.0: # Heuristic check if it's still int16
             voiced_waveform = voiced_waveform / 32768.0 # Normalize int16 range to [-1, 1]
         
