@@ -87,6 +87,14 @@ class Trainer:
         
         progress_bar = tqdm(self.train_loader, desc=f"Epoch {self.current_epoch+1}/{self.num_epochs} Training", leave=False)
         for batch_idx, (features_1d, features_2d, labels, _) in enumerate(progress_bar):
+            if batch_idx == 0:
+                print("1D shape:", features_1d.shape, "2D shape:", features_2d.shape, "labels:", labels)
+                print("1D stats:", features_1d.mean().item(), features_1d.std().item())
+                print("2D stats:", features_2d.mean().item(), features_2d.std().item())
+                assert not torch.isnan(features_1d).any(), "NaN in 1D features"
+                assert not torch.isinf(features_1d).any(), "Inf in 1D features"
+                assert not torch.isnan(features_2d).any(), "NaN in 2D features"
+                assert not torch.isinf(features_2d).any(), "Inf in 2D features"
             features_1d = features_1d.to(self.device)
             features_2d = features_2d.to(self.device)
             labels = labels.to(self.device)
@@ -123,6 +131,14 @@ class Trainer:
         progress_bar = tqdm(self.val_loader, desc=f"Epoch {self.current_epoch+1}/{self.num_epochs} Validation", leave=False)
         with torch.no_grad():
             for batch_idx, (features_1d, features_2d, labels, _) in enumerate(progress_bar):
+                if batch_idx == 0:
+                    print("1D shape:", features_1d.shape, "2D shape:", features_2d.shape, "labels:", labels)
+                    print("1D stats:", features_1d.mean().item(), features_1d.std().item())
+                    print("2D stats:", features_2d.mean().item(), features_2d.std().item())
+                    assert not torch.isnan(features_1d).any(), "NaN in 1D features"
+                    assert not torch.isinf(features_1d).any(), "Inf in 1D features"
+                    assert not torch.isnan(features_2d).any(), "NaN in 2D features"
+                    assert not torch.isinf(features_2d).any(), "Inf in 2D features"
                 features_1d = features_1d.to(self.device)
                 features_2d = features_2d.to(self.device)
                 labels = labels.to(self.device)
