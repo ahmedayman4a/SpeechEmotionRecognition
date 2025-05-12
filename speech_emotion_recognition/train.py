@@ -406,7 +406,7 @@ def main():
         emotion_labels_map=config.EMOTION_LABELS,
         batch_size=config.BATCH_SIZE, audio_preprocessor=audio_preprocessor, 
         feature_extractor=feature_extractor, target_sample_rate=config.TARGET_SAMPLE_RATE,
-        shuffle=False, num_workers=config.NUM_WORKERS, pin_memory=config.PIN_MEMORY # No shuffle for test
+        shuffle=False, num_workers=config.NUM_WORKERS, pin_memory=config.PIN_MEMORY
     )
     print("DataLoaders created.")
 
