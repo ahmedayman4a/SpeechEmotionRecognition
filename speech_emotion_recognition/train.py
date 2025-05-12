@@ -415,23 +415,36 @@ def main():
     train_loader = get_data_loader(
         file_paths_list=train_files, labels_list=train_labels,
         emotion_labels_map=config.EMOTION_LABELS,
-        batch_size=config.BATCH_SIZE, audio_preprocessor=audio_preprocessor, 
-        feature_extractor=feature_extractor, target_sample_rate=config.TARGET_SAMPLE_RATE,
-        shuffle=config.SHUFFLE_TRAIN, num_workers=config.NUM_WORKERS, pin_memory=config.PIN_MEMORY
+        batch_size=config.BATCH_SIZE,
+        audio_preprocessor=audio_preprocessor, 
+        feature_extractor=feature_extractor,
+        augmentation_config=config.AUGMENTATION, 
+        is_training=True, 
+        shuffle=config.SHUFFLE_TRAIN, 
+        num_workers=config.NUM_WORKERS, 
+        pin_memory=config.PIN_MEMORY
     )
     val_loader = get_data_loader(
         file_paths_list=val_files, labels_list=val_labels,
         emotion_labels_map=config.EMOTION_LABELS,
-        batch_size=config.BATCH_SIZE, audio_preprocessor=audio_preprocessor, 
-        feature_extractor=feature_extractor, target_sample_rate=config.TARGET_SAMPLE_RATE,
-        shuffle=config.SHUFFLE_VAL, num_workers=config.NUM_WORKERS, pin_memory=config.PIN_MEMORY
+        batch_size=config.BATCH_SIZE, 
+        audio_preprocessor=audio_preprocessor, 
+        feature_extractor=feature_extractor,
+        is_training=False, 
+        shuffle=config.SHUFFLE_VAL, 
+        num_workers=config.NUM_WORKERS, 
+        pin_memory=config.PIN_MEMORY
     )
     test_loader = get_data_loader(
         file_paths_list=test_files, labels_list=test_labels,
         emotion_labels_map=config.EMOTION_LABELS,
-        batch_size=config.BATCH_SIZE, audio_preprocessor=audio_preprocessor, 
-        feature_extractor=feature_extractor, target_sample_rate=config.TARGET_SAMPLE_RATE,
-        shuffle=False, num_workers=config.NUM_WORKERS, pin_memory=config.PIN_MEMORY
+        batch_size=config.BATCH_SIZE, 
+        audio_preprocessor=audio_preprocessor, 
+        feature_extractor=feature_extractor,
+        is_training=False, 
+        shuffle=False, 
+        num_workers=config.NUM_WORKERS, 
+        pin_memory=config.PIN_MEMORY
     )
     print("DataLoaders created.")
 

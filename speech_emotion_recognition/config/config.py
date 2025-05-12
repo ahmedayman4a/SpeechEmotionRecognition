@@ -103,3 +103,18 @@ LOG_DIR = "logs"
 # Path to the file where dataset mean/std are saved
 # Run utils/dataset_stats.py to generate this file
 DATASET_STATS_FILE = os.path.join(os.path.dirname(__file__), 'dataset_stats.pt')
+
+# --- Augmentation Config ---
+AUGMENTATION = {
+    'apply_noise': True,
+    'noise_factor': 0.005, # Amount of Gaussian noise to add (relative to std deviation)
+    
+    'apply_volume': True,
+    'volume_range': (0.8, 1.2), # Randomly scale volume between 80% and 120%
+    
+    'apply_specaugment': True,
+    'specaugment_freq_mask_param': 27, # Max width of frequency mask (paper default: 27 for LibriSpeech)
+    'specaugment_time_mask_param': 70, # Max width of time mask (paper default: 70 for LibriSpeech)
+    'specaugment_num_freq_masks': 2,   # Number of frequency masks
+    'specaugment_num_time_masks': 2    # Number of time masks
+}

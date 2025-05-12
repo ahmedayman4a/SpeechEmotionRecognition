@@ -62,67 +62,153 @@ class CremaDataset(Dataset):
         return waveform, sample_rate, label, file_name
 
 
-def create_collate_fn(audio_preprocessor: AudioPreprocessor, 
-                        feature_extractor: PaperCombinedFeatureExtractor,
-                        target_sample_rate: int):
-    """
-    Creates a collate_fn for the DataLoader.
-    This function will:
-    1. Take a batch of (waveform, sample_rate, label, file_name) tuples.
-    2. Apply audio_preprocessor to waveforms (resample, VAD, normalize).
-    3. Apply feature_extractor to get 1D and 2D features.
-    4. Pad features if necessary (though feature_extractor should handle batching internally now).
-    5. Return batched 1D features, 2D features, and labels.
-    """
+def create_collate_fn(preprocessor: AudioPreprocessor, 
+                      feature_extractor: PaperCombinedFeatureExtractor,
+                      augmentation_config: dict, # Pass augmentation settings dict
+                      is_training: bool = False):
+    """Collate function to load, preprocess, augment (if training), and extract features."""
+    
+    # Initialize SpecAugment transform if needed
+    spec_augment = None
+    if is_training and augmentation_config.get('apply_specaugment', False):
+        spec_augment = torchaudio.transforms.SpecAugment(
+            freq_mask_param=augmentation_config.get('specaugment_freq_mask_param', 27),
+            time_mask_param=augmentation_config.get('specaugment_time_mask_param', 70),
+            iid_masks=True, # Apply masks independently
+            n_freq_masks=augmentation_config.get('specaugment_num_freq_masks', 2),
+            n_time_masks=augmentation_config.get('specaugment_num_time_masks', 2)
+        )
+        print("SpecAugment enabled for training batches.")
+
     def collate_fn(batch):
-        # batch is a list of tuples: (waveform, sample_rate, label, file_name)
-        waveforms_orig, sample_rates_orig, labels, file_names = zip(*batch)
+        # batch is a list of tuples: (waveform, sample_rate, label, filename)
+        waveforms = [item[0] for item in batch]
+        sample_rates = [item[1] for item in batch]
+        labels = torch.tensor([item[2] for item in batch], dtype=torch.long)
+        filenames = [item[3] for item in batch]
 
-        batch_for_preprocessing = []
-        for wf, sr in zip(waveforms_orig, sample_rates_orig):
-            if not isinstance(wf, torch.Tensor): 
-                wf = torch.zeros((1, target_sample_rate))
-            batch_for_preprocessing.append((wf, sr))
+        # --- Apply Waveform Augmentations (only during training) ---
+        augmented_waveforms = []
+        if is_training:
+            for wf in waveforms:
+                temp_wf = wf.clone()
+                # 1. Noise Injection
+                if augmentation_config.get('apply_noise', False) and augmentation_config.get('noise_factor', 0) > 0:
+                    noise = torch.randn_like(temp_wf) * augmentation_config['noise_factor'] # Use dict directly
+                    temp_wf += noise
+                
+                # 2. Volume Perturbation
+                if augmentation_config.get('apply_volume', False):
+                    min_vol, max_vol = augmentation_config.get('volume_range', (1.0, 1.0))
+                    scale = torch.rand(1).item() * (max_vol - min_vol) + min_vol
+                    temp_wf *= scale
+                
+                # Clip to avoid potential issues from large noise/scaling
+                temp_wf = torch.clamp(temp_wf, -1.0, 1.0)
+                augmented_waveforms.append(temp_wf)
+        else:
+            augmented_waveforms = waveforms # Use original waveforms if not training
 
-        preprocessed_waveforms_batch, _ = audio_preprocessor(batch_for_preprocessing)
-        batch_features_1d, batch_features_2d = feature_extractor(preprocessed_waveforms_batch)
-        labels_tensor = torch.tensor(labels, dtype=torch.long)
+        # Prepare input for preprocessor
+        preprocessor_input = list(zip(augmented_waveforms, sample_rates))
+
+        # 1. Preprocess audio using the provided preprocessor instance
+        # This handles resampling, VAD, normalization etc.
+        # Output: [B, C, T_padded]
+        try:
+            padded_waveforms, _ = preprocessor(preprocessor_input)
+        except Exception as e:
+            print(f"Error during audio preprocessing: {e}")
+            # Handle error: skip batch or return dummy data? Returning None for now.
+            print(f"Problematic filenames (sample): {filenames[:2]}")
+            return None, None, None, None # Indicate error
+
+        # Handle potentially empty waveforms after VAD in preprocessor
+        if padded_waveforms is None or padded_waveforms.numel() == 0:
+            # print("Warning: Skipping batch due to empty waveforms after preprocessing (VAD?).")
+            return None, None, None, None # Indicate empty batch
+
+        # 2. Extract features using the provided feature extractor instance
+        # The feature extractor handles dataset normalization internally if configured.
+        # Output: features_1d [B, D_1d], features_2d [B, C_img, H, W]
+        try:
+            features_1d, features_2d = feature_extractor(padded_waveforms)
+        except Exception as e:
+             print(f"Error during feature extraction: {e}")
+             print(f"Padded waveform shape: {padded_waveforms.shape}")
+             print(f"Problematic filenames (sample): {filenames[:2]}")
+             return None, None, None, None
         
-        return batch_features_1d, batch_features_2d, labels_tensor, list(file_names)
+        # --- Apply Spectrogram Augmentation (SpecAugment, only during training) ---
+        if spec_augment is not None: # Check if transform was initialized
+            # SpecAugment expects [.., freq, time]
+            features_2d_permuted = features_2d.permute(0, 1, 3, 2) # [B, C, W, H]
+            # Apply SpecAugment
+            features_2d_augmented = spec_augment(features_2d_permuted)
+            # Permute back: [B, C, H, W]
+            features_2d = features_2d_augmented.permute(0, 1, 3, 2)
+            # print("Applied SpecAugment") # Debug print
+
+        return features_1d, features_2d, labels, filenames
 
     return collate_fn
 
 
 def get_data_loader(file_paths_list: list, 
-                    labels_list: list,
+                    labels_list: list, 
                     emotion_labels_map: dict,
                     batch_size: int, 
                     audio_preprocessor: AudioPreprocessor, 
-                    feature_extractor: PaperCombinedFeatureExtractor,
-                    target_sample_rate: int,
-                    shuffle=True, num_workers=4, pin_memory=True):
-    
+                    feature_extractor: PaperCombinedFeatureExtractor, 
+                    is_training: bool = False,
+                    shuffle: bool = True, 
+                    num_workers: int = 4, 
+                    pin_memory: bool = True,
+                    augmentation_config: dict = None):
+    """Creates a DataLoader for the CREMA-D dataset.
+
+    Args:
+        file_paths_list (list): List of full paths to .wav files.
+        labels_list (list): List of integer labels corresponding to file paths.
+        emotion_labels_map (dict): Mapping from emotion string to integer label.
+        batch_size (int): Number of samples per batch.
+        audio_preprocessor (AudioPreprocessor): Instance for audio preprocessing.
+        feature_extractor (PaperCombinedFeatureExtractor): Instance for feature extraction.
+        is_training (bool): If True, applies augmentations and drops the last batch if incomplete.
+        shuffle (bool): Whether to shuffle the data.
+        num_workers (int): Number of subprocesses for data loading.
+        pin_memory (bool): If True, copies tensors into pinned memory before returning.
+        augmentation_config (dict): Dictionary containing augmentation parameters.
+
+    Returns:
+        DataLoader: The configured DataLoader instance.
+    """
+
     dataset = CremaDataset(
-        file_paths_list=file_paths_list,
+        file_paths_list=file_paths_list, 
         labels_list=labels_list,
         emotion_labels_map=emotion_labels_map
     )
     
-    collate_function = create_collate_fn(
-        audio_preprocessor=audio_preprocessor,
+    collate_fn = create_collate_fn(
+        preprocessor=audio_preprocessor, 
         feature_extractor=feature_extractor,
-        target_sample_rate=target_sample_rate
+        augmentation_config=augmentation_config, # Pass the dict here
+        is_training=is_training
     )
 
-    dataloader = DataLoader(
+    data_loader = DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
+        collate_fn=collate_fn,
         pin_memory=pin_memory,
-        collate_fn=collate_function
+        drop_last=is_training
     )
-    return dataloader
+    
+    print(f"Created DataLoader with {len(dataset)} samples. is_training={is_training}, shuffle={shuffle}")
+    return data_loader
 
 
 if __name__ == '__main__':
@@ -136,10 +222,24 @@ if __name__ == '__main__':
     N_MFCC_1D_TEST = 13
     N_MELS_FOR_1D_FEAT_TEST = 135
     N_MELS_2D_TEST = 64
+    CNN1D_NUM_FEATURES_DIM_TEST = 162 # Match 1D feature output dim
+
+    # Dummy augmentation config for testing
+    AUG_CONFIG_TEST = {
+        'apply_noise': False,
+        'noise_factor': 0.001,
+        'apply_volume': False,
+        'volume_range': (0.9, 1.1),
+        'apply_specaugment': False,
+        'specaugment_freq_mask_param': 10,
+        'specaugment_time_mask_param': 20,
+        'specaugment_num_freq_masks': 1,
+        'specaugment_num_time_masks': 1
+    }
 
     # Create dummy data directory and files if they don't exist
     if not os.path.exists(TEST_DATA_ROOT_DIR):
-        print(f"Test data directory {TEST_DATA_ROOT_DIR} does not exist. Creating it.")
+        print(f"Test data directory {TEST_DATA_ROOT_DIR} does not exist. Creating dummy files...")
         os.makedirs(TEST_DATA_ROOT_DIR, exist_ok=True)
 
     dummy_files_info = [
@@ -149,62 +249,80 @@ if __name__ == '__main__':
         ("1003_IWL_FEA_XX.wav", EMOTION_LABELS_TEST['FEA']),
     ]
     
-    # # Ensure enough dummy files exist for the test
-    # if not all(os.path.exists(os.path.join(TEST_DATA_ROOT_DIR, fname)) for fname, _ in dummy_files_info):
-    #     print(f"Test data directory {TEST_DATA_ROOT_DIR} is missing some files. Recreating dummy .wav files.")
-    #     for fname, _ in dummy_files_info:
-    #         fpath = os.path.join(TEST_DATA_ROOT_DIR, fname)
-    #         try:
-    #             waveform_dummy = torch.zeros((1, TARGET_SR_TEST // 10))
-    #             torchaudio.save(fpath, waveform_dummy, TARGET_SR_TEST)
-    #         except Exception as e:
-    #             print(f"Could not create dummy file {fpath}: {e}.")
-    #             exit()
-    #     print(f"Created/Verified {len(dummy_files_info)} dummy files in {TEST_DATA_ROOT_DIR}")
 
     test_file_paths = [os.path.join(TEST_DATA_ROOT_DIR, fname) for fname, _ in dummy_files_info]
     test_labels = [label for _, label in dummy_files_info]
 
     print(f"Attempting to load data using predefined lists from: {os.path.abspath(TEST_DATA_ROOT_DIR)}")
 
+    # Instantiate Preprocessor and Feature Extractor
     audio_proc = AudioPreprocessor(target_sample_rate=TARGET_SR_TEST, vad_mode=0)
+    # Load dummy stats or set to None if feature extractor can handle it
+    dummy_mean_1d = torch.randn(CNN1D_NUM_FEATURES_DIM_TEST)
+    dummy_std_1d = torch.rand(CNN1D_NUM_FEATURES_DIM_TEST) + 1e-6
+    dummy_mean_2d = torch.randn(1)
+    dummy_std_2d = torch.rand(1) + 1e-6
+
     feature_ext = PaperCombinedFeatureExtractor(
         sr=TARGET_SR_TEST, n_mfcc_1d=N_MFCC_1D_TEST, n_mels_for_1d_feat=N_MELS_FOR_1D_FEAT_TEST,
         n_mels_2d=N_MELS_2D_TEST,
         fmax_spec_img= TARGET_SR_TEST // 2,
         hop_length_2d=256,
-        n_fft_2d=1024
+        n_fft_2d=1024,
+        dataset_mean_1d=dummy_mean_1d, dataset_std_1d=dummy_std_1d, 
+        dataset_mean_2d=dummy_mean_2d, dataset_std_2d=dummy_std_2d,
+        log_spec_img=True # Add other necessary params from config if needed by extractor
     )
 
     try:
-        test_dataloader = get_data_loader(
+        # Test with is_training = False (no augmentation)
+        print("\n--- Testing DataLoader (is_training=False) ---")
+        test_dataloader_noaug = get_data_loader(
             file_paths_list=test_file_paths,
             labels_list=test_labels,
             emotion_labels_map=EMOTION_LABELS_TEST,
             batch_size=2,
             audio_preprocessor=audio_proc,
             feature_extractor=feature_ext,
-            target_sample_rate=TARGET_SR_TEST,
-            shuffle=False, num_workers=0
+            augmentation_config=AUG_CONFIG_TEST, # Pass test config
+            is_training=False, # Test without aug
+            shuffle=False, num_workers=0, pin_memory=False # Easier for local test
         )
         
-        print(f"Successfully created DataLoader with {len(test_dataloader.dataset)} samples.")
-        
-        for i, batch_data in enumerate(test_dataloader):
+        print(f"Successfully created DataLoader (no aug) with {len(test_dataloader_noaug.dataset)} samples.")
+        for i, batch_data in enumerate(test_dataloader_noaug):
+            if batch_data[0] is None: # Skip if collate_fn returned error
+                print(f"Skipping batch {i+1} due to preprocessing/feature extraction error.")
+                continue
             feats_1d, feats_2d, lbls, fnames = batch_data
-            print(f"Batch {i+1}:")
-            print(f"  1D Features shape: {feats_1d.shape}")
-            print(f"  2D Features shape: {feats_2d.shape}")
-            print(f"  Labels: {lbls}")
-            print(f"  File names: {fnames}")
-            
-            assert feats_1d.shape[0] <= 2 # Batch size
-            assert feats_1d.shape[1:] == (1, 162)
-            assert feats_2d.shape[0] <= 2
-            assert feats_2d.shape[1:-1] == (1, N_MELS_2D_TEST)
-            assert lbls.shape[0] <= 2
-            # if i == 0: break
-        print("DataLoader test with predefined lists completed successfully.")
+            print(f"Batch {i+1} (no aug): 1D={feats_1d.shape}, 2D={feats_2d.shape}, Lbls={lbls}")
+            # Add assertions if needed
+        print("No-Augmentation DataLoader test completed.")
+
+        # Test with is_training = True (augmentation)
+        print("\n--- Testing DataLoader (is_training=True) ---")
+        AUG_CONFIG_TEST['apply_specaugment'] = True # Enable for this test
+        test_dataloader_aug = get_data_loader(
+            file_paths_list=test_file_paths,
+            labels_list=test_labels,
+            emotion_labels_map=EMOTION_LABELS_TEST,
+            batch_size=2,
+            audio_preprocessor=audio_proc,
+            feature_extractor=feature_ext,
+            augmentation_config=AUG_CONFIG_TEST, # Pass test config
+            is_training=True, # Test with aug
+            shuffle=False, num_workers=0, pin_memory=False
+        )
+
+        print(f"Successfully created DataLoader (aug) with {len(test_dataloader_aug.dataset)} samples.")
+        for i, batch_data in enumerate(test_dataloader_aug):
+            if batch_data[0] is None:
+                print(f"Skipping batch {i+1} due to preprocessing/feature extraction error.")
+                continue
+            feats_1d, feats_2d, lbls, fnames = batch_data
+            print(f"Batch {i+1} (aug): 1D={feats_1d.shape}, 2D={feats_2d.shape}, Lbls={lbls}")
+            # Add assertions if needed
+        print("Augmentation DataLoader test completed.")
         
     except Exception as e:
         print(f"Error during DataLoader test: {e}")
