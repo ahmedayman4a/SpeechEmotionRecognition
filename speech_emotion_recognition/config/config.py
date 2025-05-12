@@ -57,7 +57,7 @@ FMAX_IMG = 8000          # Maximum frequency for Mel spectrogram calculation (sr
 # CNN1D specific
 CNN1D_INPUT_CHANNELS = 1
 CNN1D_NUM_FEATURES_DIM = 162 # This must match the output of 1D feature extraction
-CNN1D_INITIAL_OUT_CHANNELS = 32 # Initial channels after the stem conv
+CNN1D_INITIAL_OUT_CHANNELS = 16 # Initial channels after the stem conv
 CNN1D_BLOCK_CHANNELS = [32, 64, 128] # Channels for each ResNet block stage in CNN1D
 CNN1D_OUTPUT_FEATURES = 128  # Output features from ResNet-based CNN1D
 
