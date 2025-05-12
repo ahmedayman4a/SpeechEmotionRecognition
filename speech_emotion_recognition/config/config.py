@@ -57,12 +57,12 @@ FMAX_IMG = 8000          # Maximum frequency for Mel spectrogram calculation (sr
 
 # 5. Training Parameters
 BATCH_SIZE = 256
-LEARNING_RATE = 0.001
-NUM_EPOCHS = 150 # Or use early stopping
+LEARNING_RATE = 0.0001
+NUM_EPOCHS = 150
 OPTIMIZER = 'Adam' # 'Adam', 'SGD', etc.
 WEIGHT_DECAY = 5e-4
 WARMUP_EPOCHS = 5
-MIN_LR_FACTOR = 0.0001
+MIN_LR_FACTOR = 0.001
 
 # For DataLoader
 NUM_WORKERS = 4
@@ -86,16 +86,16 @@ DATASET_STATS_FILE = os.path.join(os.path.dirname(__file__), 'dataset_stats.pt')
 # --- Augmentation Config ---
 AUGMENTATION = {
     'apply_noise': True,
-    'noise_factor': 0.005, # Amount of Gaussian noise to add (relative to std deviation)
+    'noise_factor': 0.01, # Amount of Gaussian noise to add (relative to std deviation)
     
     'apply_volume': True,
-    'volume_range': (0.8, 1.2), # Randomly scale volume between 80% and 120%
+    'volume_range': (0.7, 1.3), # Randomly scale volume between 80% and 120%
     
     'apply_specaugment': True,
     'specaugment_freq_mask_param': 27, # Max width of frequency mask (paper default: 27 for LibriSpeech)
     'specaugment_time_mask_param': 70, # Max width of time mask (paper default: 70 for LibriSpeech)
-    'specaugment_num_freq_masks': 2,   # Number of frequency masks
-    'specaugment_num_time_masks': 2    # Number of time masks
+    'specaugment_num_freq_masks': 3,   # Number of frequency masks
+    'specaugment_num_time_masks': 3    # Number of time masks
 }
 
 # --- Model Config ---
