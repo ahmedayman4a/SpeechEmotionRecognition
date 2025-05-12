@@ -88,7 +88,12 @@ class AudioPreprocessor:
             
         voiced_audio_bytes = b''.join(voiced_frames_data)
         voiced_audio_np = np.frombuffer(voiced_audio_bytes, dtype=np.int16)
-        voiced_waveform = torch.from_numpy(voiced_audio_np).float() / 32768.0
+        
+        # Convert back to tensor, normalize from int16 range if needed
+        # Ensure the numpy array is writable before converting
+        voiced_waveform = torch.from_numpy(voiced_audio_np.copy()).float()
+        if voiced_waveform.max() > 1.0: # Heuristic check if it's still int16
+            voiced_waveform = voiced_waveform / 32768.0 # Normalize int16 range to [-1, 1]
         
         return voiced_waveform.unsqueeze(0) # Return as [1, T]
 
