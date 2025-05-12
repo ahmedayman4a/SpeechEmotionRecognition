@@ -51,6 +51,9 @@ class Trainer:
         self.start_epoch = start_epoch # Added for resuming
         self.best_val_loss = best_val_loss # Added for resuming
         
+        # Add flag for validation batch viz logging
+        self.logged_val_batch_viz = False
+
         os.makedirs(model_save_dir, exist_ok=True)
 
         # Initialize metrics using torchmetrics
@@ -113,6 +116,10 @@ class Trainer:
         self.val_metrics.reset()
         
         progress_bar = tqdm(self.val_loader, desc=f"Epoch {self.current_epoch+1}/{self.num_epochs} Validation", leave=False)
+        
+        # Store first batch data for visualization
+        first_batch_data = None
+
         with torch.no_grad():
             for batch_idx, (features_2d, labels, _) in enumerate(progress_bar):
                 features_2d = features_2d.to(self.device)
@@ -121,11 +128,18 @@ class Trainer:
                 outputs = self.model(features_2d)
                 loss = self.criterion(outputs, labels)
 
-                # Update metrics
                 preds = torch.argmax(outputs, dim=1)
                 self.val_metrics.update(preds, labels)
                 total_loss += loss.item()
                 progress_bar.set_postfix(loss=loss.item())
+
+                # --- Log Validation Batch Visualization (once per run) --- 
+                if batch_idx == 0 and not self.logged_val_batch_viz:
+                    print(f"\nLogging visualization for first validation batch (Epoch {self.current_epoch+1})...")
+                    log_val_viz(self.wandb_run, features_2d.cpu(), labels.cpu(), preds.cpu(), config.EMOTION_LABELS)
+                    self.logged_val_batch_viz = True
+                    print("Finished logging validation batch visualization.")
+                # --- End Logging --- 
 
         avg_loss = total_loss / len(self.val_loader)
         epoch_metrics = self.val_metrics.compute()
@@ -287,6 +301,51 @@ def get_scheduler(optimizer, warmup_epochs, max_epochs, steps_per_epoch):
     
     scheduler = SequentialLR(optimizer, schedulers=[scheduler_warmup, scheduler_cosine], milestones=[warmup_steps])
     return scheduler
+
+def log_val_viz(wandb_run, features_batch, labels_batch, preds_batch, emotion_map, max_samples=8):
+    """Logs spectrograms with true/pred labels for a validation batch to wandb."""
+    if wandb_run is None:
+        print("Wandb run not initialized, skipping validation visualization logging.")
+        return
+    
+    try:
+        # Invert emotion map for easy label lookup
+        label_to_emotion = {v: k for k, v in emotion_map.items()}
+        num_samples = min(features_batch.size(0), max_samples)
+        log_dict = {}
+
+        for i in range(num_samples):
+            img_tensor = features_batch[i, 0, :, :].numpy() # Get first channel, convert to numpy
+            true_label_idx = labels_batch[i].item()
+            pred_label_idx = preds_batch[i].item()
+            true_emotion = label_to_emotion.get(true_label_idx, "UNK")
+            pred_emotion = label_to_emotion.get(pred_label_idx, "UNK")
+
+            fig, ax = plt.subplots(figsize=(10, 4))
+            im = ax.imshow(img_tensor, aspect='auto', origin='lower', cmap='viridis')
+            plt.colorbar(im, ax=ax, label='Log Mel Energy')
+            title = f"Sample {i} | True: {true_emotion} ({true_label_idx}) | Pred: {pred_emotion} ({pred_label_idx})"
+            if true_label_idx == pred_label_idx:
+                title += " (Correct)"
+            else:
+                title += " (Incorrect)"
+            ax.set_title(title)
+            ax.set_xlabel("Time Frames")
+            ax.set_ylabel("Mel Bands")
+            plt.tight_layout()
+
+            # Log to wandb
+            log_key = f"validation_samples/epoch_{wandb_run.step or 0}_sample_{i}" # Include epoch/step if available
+            log_dict[log_key] = wandb.Image(fig)
+            plt.close(fig) # Close plot to free memory
+
+        if log_dict:
+            wandb_run.log(log_dict)
+
+    except Exception as e:
+        print(f"Error during validation visualization logging: {e}")
+        import traceback
+        traceback.print_exc()
 
 def main():
     parser = argparse.ArgumentParser(description="Train Speech Emotion Recognition Model")
