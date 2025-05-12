@@ -20,7 +20,7 @@ EMOTION_LABELS = {
 
 # 2. Audio Preprocessing Parameters (for AudioPreprocessor)
 TARGET_SAMPLE_RATE = 16000 # Hz, common for speech processing
-VAD_MODE = 10# Voice Activity Detection mode (0: off, 1-3: webrtcvad aggressiveness)
+VAD_MODE = 0 # Voice Activity Detection mode (0: off, 1-3: webrtcvad aggressiveness)
 NORMALIZE_AUDIO = True # Whether to normalize audio waveform (z-score)
 FRAME_MS_VAD = 30 # Frame duration in ms for VAD
 
