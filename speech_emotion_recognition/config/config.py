@@ -57,7 +57,7 @@ FMAX_IMG = 8000          # Maximum frequency for Mel spectrogram calculation (sr
 
 # 5. Training Parameters
 BATCH_SIZE = 256
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.0005
 NUM_EPOCHS = 150
 OPTIMIZER = 'Adam' # 'Adam', 'SGD', etc.
 WEIGHT_DECAY = 5e-4
