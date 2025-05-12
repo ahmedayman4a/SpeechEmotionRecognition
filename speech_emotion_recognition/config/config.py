@@ -11,7 +11,6 @@ EMOTION_LABELS = {
     'FEA': 3,
     'HAP': 4,
     'NEU': 5
-    # 'SUP': 6, # Add Surprise if using 7 classes
 }
 
 # 2. Audio Preprocessing Parameters (for AudioPreprocessor)
@@ -24,7 +23,6 @@ FRAME_MS_VAD = 30 # Frame duration in ms for VAD
 
 # For Path A: 1D Spectral Features (target vector size: 162)
 # These are parameters for underlying Librosa/Torchaudio calls if customized
-# Default values from FeatureExtractor or typical values:
 N_FFT_COMMON = 512        # FFT window size (e.g., for MFCC, MelSpec, Chroma)
 HOP_LENGTH_COMMON = 160   # Hop length for STFT
 N_MFCC = 13               # Number of MFCCs to compute before mean
@@ -38,7 +36,7 @@ N_MELS_FOR_1D_FEAT = 135  # Number of Mel bands for 1D features (before mean)
 # The paper mentions 162 distinct values. We'll need to ensure our feature extraction logic for Path A sums to this.
 # For example, if using deltas for MFCCs, that would increase N_MFCC * (1+delta_order)
 # The paper summary states "162 distinct values per audio file" after processing.
-# The feature_extractor_1d should produce this fixed size vector.
+
 
 # For Path B: 2D Spectrogram Images
 SPECTROGRAM_TYPE = 'melspectrogram' # 'melspectrogram' or 'spectrogram'
@@ -55,8 +53,8 @@ FMAX_IMG = 8000          # Maximum frequency for Mel spectrogram calculation (sr
 # CNN1D specific
 CNN1D_INPUT_CHANNELS = 1
 CNN1D_NUM_FEATURES_DIM = 162 # This must match the output of 1D feature extraction
-CNN1D_INITIAL_OUT_CHANNELS = 64 # Initial channels after the stem conv
-CNN1D_BLOCK_CHANNELS = [64, 128, 256, 512] # Channels for each ResNet block stage in CNN1D
+CNN1D_INITIAL_OUT_CHANNELS = 32 # Initial channels after the stem conv
+CNN1D_BLOCK_CHANNELS = [32, 64, 128, 256] # Channels for each ResNet block stage in CNN1D
 CNN1D_OUTPUT_FEATURES = 256  # Output features from ResNet-based CNN1D, set in CombinedModel constructor
 
 # CNN2D specific
@@ -64,7 +62,7 @@ CNN2D_INPUT_CHANNELS = 1
 CNN2D_IMG_HEIGHT = N_MELS_IMG # Should match the processed image height (n_mels_2d)
 # CNN2D_IMG_WIDTH = IMG_WIDTH # REMOVED: Width is variable
 CNN2D_INITIAL_OUT_CHANNELS = 32 # Initial channels after the stem conv, paper: 32
-CNN2D_BLOCK_CHANNELS = [32, 64, 128, 256] # Channels for each ResNet block stage in CNN2D. Paper used [32, 64, 512, 256]
+CNN2D_BLOCK_CHANNELS = [32, 64, 128, 256, 512] # Channels for each ResNet block stage in CNN2D. Paper used [32, 64, 512, 256]
 CNN2D_OUTPUT_FEATURES = 512 # Output features from ResNet-based CNN2D (after GAP), set in CombinedModel constructor
 
 # Shared for CNNs in CombinedModel
