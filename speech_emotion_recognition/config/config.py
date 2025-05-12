@@ -16,7 +16,7 @@ EMOTION_LABELS = {
 
 # 2. Audio Preprocessing Parameters (for AudioPreprocessor)
 TARGET_SAMPLE_RATE = 16000 # Hz, common for speech processing
-VAD_MODE = 0 # Voice Activity Detection mode (0: off, 1-3: webrtcvad aggressiveness)
+VAD_MODE = 1 # Voice Activity Detection mode (0: off, 1-3: webrtcvad aggressiveness)
 NORMALIZE_AUDIO = True # Whether to normalize audio waveform (z-score)
 FRAME_MS_VAD = 30 # Frame duration in ms for VAD
 
@@ -44,11 +44,12 @@ N_MELS_FOR_1D_FEAT = 135  # Number of Mel bands for 1D features (before mean)
 SPECTROGRAM_TYPE = 'melspectrogram' # 'melspectrogram' or 'spectrogram'
 N_MELS_IMG = 64          # Number of Mel bands for the 2D image (becomes height)
 N_FFT_IMG = 1024         # FFT window size for 2D spectrogram image
-HOP_LENGTH_IMG = 16     # Hop length for 2D spectrogram image (affects width)
+HOP_LENGTH_IMG = 256     # Hop length for 2D spectrogram image (affects width)
 IMG_HEIGHT = 64          # Target height of the spectrogram image (same as N_MELS_IMG)
 # IMG_WIDTH = 64           # REMOVED: Target width is no longer fixed, spectrogram width is variable
 LOG_SPECTROGRAM_IMG = True # Apply log to the spectrogram image values
 UPPER_FREQ_LIMIT_KHZ = 10 # As per paper for spectrogram images (10000 Hz)
+FMAX_IMG = 8000          # Maximum frequency for Mel spectrogram calculation (sr/2 for 16kHz)
 
 # 4. Model Parameters
 # CNN1D specific

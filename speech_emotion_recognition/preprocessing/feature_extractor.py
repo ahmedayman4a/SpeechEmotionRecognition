@@ -233,7 +233,9 @@ if __name__ == '__main__':
         n_mfcc_1d=13, 
         n_mels_for_1d_feat=135, # This makes it 1+12+13+1+135 = 162
         n_mels_2d=64, # img_height and img_width removed
-        fmax_spec_img=8000 
+        fmax_spec_img=8000,
+        n_fft_2d = 1024,
+        hop_length_2d = 256
     )
 
     features_1d_batch, features_2d_batch = paper_feat_extractor(dummy_waveforms_batch_tensor)

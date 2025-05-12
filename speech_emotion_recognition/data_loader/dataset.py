@@ -129,13 +129,12 @@ if __name__ == '__main__':
     # Example usage - this test needs to be updated to reflect the new Dataset structure
     print("--- Testing CremaDataset and get_data_loader with pre-defined file lists ---")
     # --- Configuration (mirroring parts of config.py for this test) ---
-    TEST_DATA_ROOT_DIR = "../../data/Crema"  # Root directory of data
+    TEST_DATA_ROOT_DIR = "data/Crema"  # Root directory of data
     TARGET_SR_TEST = 16000
     EMOTION_LABELS_TEST = { 'SAD': 0, 'ANG': 1, 'DIS': 2, 'FEA': 3, 'HAP': 4, 'NEU': 5 }
     
     N_MFCC_1D_TEST = 13
     N_MELS_FOR_1D_FEAT_TEST = 135
-    IMG_H_TEST, IMG_W_TEST = 64, 64
     N_MELS_2D_TEST = 64
 
     # Create dummy data directory and files if they don't exist
@@ -144,24 +143,24 @@ if __name__ == '__main__':
         os.makedirs(TEST_DATA_ROOT_DIR, exist_ok=True)
 
     dummy_files_info = [
-        ("1001_AAA_SAD_XX.wav", EMOTION_LABELS_TEST['SAD']),
-        ("1002_BBB_ANG_XX.wav", EMOTION_LABELS_TEST['ANG']),
-        ("1003_CCC_DIS_XX.wav", EMOTION_LABELS_TEST['DIS']),
-        ("1004_DDD_FEA_XX.wav", EMOTION_LABELS_TEST['FEA']),
+        ("1091_TIE_SAD_XX.wav", EMOTION_LABELS_TEST['SAD']),
+        ("1001_DFA_ANG_XX.wav", EMOTION_LABELS_TEST['ANG']),
+        ("1002_WSI_DIS_XX.wav", EMOTION_LABELS_TEST['DIS']),
+        ("1003_IWL_FEA_XX.wav", EMOTION_LABELS_TEST['FEA']),
     ]
     
-    # Ensure enough dummy files exist for the test
-    if not all(os.path.exists(os.path.join(TEST_DATA_ROOT_DIR, fname)) for fname, _ in dummy_files_info):
-        print(f"Test data directory {TEST_DATA_ROOT_DIR} is missing some files. Recreating dummy .wav files.")
-        for fname, _ in dummy_files_info:
-            fpath = os.path.join(TEST_DATA_ROOT_DIR, fname)
-            try:
-                waveform_dummy = torch.zeros((1, TARGET_SR_TEST // 10))
-                torchaudio.save(fpath, waveform_dummy, TARGET_SR_TEST)
-            except Exception as e:
-                print(f"Could not create dummy file {fpath}: {e}.")
-                exit()
-        print(f"Created/Verified {len(dummy_files_info)} dummy files in {TEST_DATA_ROOT_DIR}")
+    # # Ensure enough dummy files exist for the test
+    # if not all(os.path.exists(os.path.join(TEST_DATA_ROOT_DIR, fname)) for fname, _ in dummy_files_info):
+    #     print(f"Test data directory {TEST_DATA_ROOT_DIR} is missing some files. Recreating dummy .wav files.")
+    #     for fname, _ in dummy_files_info:
+    #         fpath = os.path.join(TEST_DATA_ROOT_DIR, fname)
+    #         try:
+    #             waveform_dummy = torch.zeros((1, TARGET_SR_TEST // 10))
+    #             torchaudio.save(fpath, waveform_dummy, TARGET_SR_TEST)
+    #         except Exception as e:
+    #             print(f"Could not create dummy file {fpath}: {e}.")
+    #             exit()
+    #     print(f"Created/Verified {len(dummy_files_info)} dummy files in {TEST_DATA_ROOT_DIR}")
 
     test_file_paths = [os.path.join(TEST_DATA_ROOT_DIR, fname) for fname, _ in dummy_files_info]
     test_labels = [label for _, label in dummy_files_info]
@@ -171,8 +170,10 @@ if __name__ == '__main__':
     audio_proc = AudioPreprocessor(target_sample_rate=TARGET_SR_TEST, vad_mode=0)
     feature_ext = PaperCombinedFeatureExtractor(
         sr=TARGET_SR_TEST, n_mfcc_1d=N_MFCC_1D_TEST, n_mels_for_1d_feat=N_MELS_FOR_1D_FEAT_TEST,
-        img_height=IMG_H_TEST, img_width=IMG_W_TEST, n_mels_2d=N_MELS_2D_TEST,
-        fmax_spec_img= TARGET_SR_TEST // 2
+        n_mels_2d=N_MELS_2D_TEST,
+        fmax_spec_img= TARGET_SR_TEST // 2,
+        hop_length_2d=256,
+        n_fft_2d=1024
     )
 
     try:
@@ -200,9 +201,9 @@ if __name__ == '__main__':
             assert feats_1d.shape[0] <= 2 # Batch size
             assert feats_1d.shape[1:] == (1, 162)
             assert feats_2d.shape[0] <= 2
-            assert feats_2d.shape[1:] == (1, IMG_H_TEST, IMG_W_TEST)
+            assert feats_2d.shape[1:-1] == (1, N_MELS_2D_TEST)
             assert lbls.shape[0] <= 2
-            if i == 0: break
+            # if i == 0: break
         print("DataLoader test with predefined lists completed successfully.")
         
     except Exception as e:
