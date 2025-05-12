@@ -20,7 +20,7 @@ EMOTION_LABELS = {
 
 # 2. Audio Preprocessing Parameters (for AudioPreprocessor)
 TARGET_SAMPLE_RATE = 16000 # Hz, common for speech processing
-VAD_MODE = 1 # Voice Activity Detection mode (0: off, 1-3: webrtcvad aggressiveness)
+VAD_MODE = 10# Voice Activity Detection mode (0: off, 1-3: webrtcvad aggressiveness)
 NORMALIZE_AUDIO = True # Whether to normalize audio waveform (z-score)
 FRAME_MS_VAD = 30 # Frame duration in ms for VAD
 
@@ -53,27 +53,6 @@ IMG_HEIGHT = 64          # Target height of the spectrogram image (same as N_MEL
 LOG_SPECTROGRAM_IMG = True # Apply log to the spectrogram image values
 FMAX_IMG = 8000          # Maximum frequency for Mel spectrogram calculation (sr/2 for 16kHz)
 
-# 4. Model Parameters
-# CNN1D specific
-CNN1D_INPUT_CHANNELS = 1
-CNN1D_NUM_FEATURES_DIM = 162 # This must match the output of 1D feature extraction
-CNN1D_INITIAL_OUT_CHANNELS = 16 # Initial channels after the stem conv
-CNN1D_BLOCK_CHANNELS = [32, 64, 128] # Channels for each ResNet block stage in CNN1D
-CNN1D_OUTPUT_FEATURES = 128  # Output features from ResNet-based CNN1D
-
-# CNN2D specific
-CNN2D_INPUT_CHANNELS = 1
-CNN2D_IMG_HEIGHT = N_MELS_IMG # Should match the processed image height (n_mels_2d)
-# CNN2D_IMG_WIDTH = IMG_WIDTH # REMOVED: Width is variable
-CNN2D_INITIAL_OUT_CHANNELS = 32 # Initial channels after the stem conv, paper: 32
-CNN2D_BLOCK_CHANNELS = [32, 64, 512, 256] # Channels for each ResNet block stage in CNN2D. Paper used [32, 64, 512, 256]
-CNN2D_OUTPUT_FEATURES = 256 # Output features from ResNet-based CNN2D 
-
-# Shared for CNNs in CombinedModel
-CNN_DROPOUT_RATE = 0.4
-
-# MLP Head in CombinedModel
-MLP_DROPOUT_RATE = 0.6
 # Activation functions are set in model instantiation, can be nn.ReLU(inplace=True) or nn.SiLU()
 
 # 5. Training Parameters
@@ -128,13 +107,14 @@ MODEL_PARAMS = {
     'cnn2d_input_channels': 1,
     
     # Configuration for new ResNet-like models
-    'cnn1d_initial_out_channels': 64, 
+    'cnn1d_initial_out_channels': 32, 
     'cnn2d_initial_out_channels': 64,
     
     # Dropout Rates
-    'cnn_dropout_rate': 0.3, 
+    'cnn_dropout_rate': 0.4, 
     'mlp_hidden_units': 128, # Hidden units in the final MLP head
-    'mlp_dropout_rate': 0.5,
+    'mlp_dropout_rate': 0.6,
     
     'activation_name': 'relu' # 'relu' or 'silu' (swish)
+    'layers': [2, 2, 2, 2]
 }

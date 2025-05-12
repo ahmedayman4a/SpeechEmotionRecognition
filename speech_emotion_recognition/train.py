@@ -443,7 +443,8 @@ def main():
         cnn_dropout_rate=config.MODEL_PARAMS['cnn_dropout_rate'],
         mlp_hidden_units=config.MODEL_PARAMS['mlp_hidden_units'],
         mlp_dropout_rate=config.MODEL_PARAMS['mlp_dropout_rate'],
-        activation_name=config.MODEL_PARAMS['activation_name']
+        activation_name=config.MODEL_PARAMS['activation_name'],
+        layers=config.MODEL_PARAMS['layers']
     ).to(device)
     print("Model initialized.")
     wandb.watch(model, log='all', log_freq=100) # Log model gradients/parameters

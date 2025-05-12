@@ -39,7 +39,8 @@ class CombinedModel(nn.Module):
                  cnn_dropout_rate: float = 0.3,
                  mlp_hidden_units: int = 128,
                  mlp_dropout_rate: float = 0.5,
-                 activation_name: str = 'relu'): 
+                 activation_name: str = 'relu',
+                 layers: list[int] = [2, 2, 2, 2]): 
         super(CombinedModel, self).__init__()
 
         if activation_name.lower() == 'relu':
@@ -54,14 +55,14 @@ class CombinedModel(nn.Module):
             input_channels=cnn1d_input_channels,
             num_features_dim=cnn1d_num_features_dim,
             initial_out_channels=cnn1d_initial_out_channels,
-            # layers=[2, 2, 2, 2], # Using default layers from CNN1D
+            layers=layers,
             activation_name=activation_name,
             dropout_rate=cnn_dropout_rate
         )
         self.cnn2d = CNN2D(
             input_channels=cnn2d_input_channels,
             initial_out_channels=cnn2d_initial_out_channels,
-            # layers=[2, 2, 2, 2], # Using default layers from CNN2D
+            layers=layers,
             activation_name=activation_name,
             dropout_rate=cnn_dropout_rate
         )
