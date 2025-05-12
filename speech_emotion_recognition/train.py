@@ -86,17 +86,22 @@ class Trainer:
         
         progress_bar = tqdm(self.train_loader, desc=f"Epoch {self.current_epoch+1}/{self.num_epochs} Training", leave=False)
         for batch_idx, (features_1d, features_2d, labels, _) in enumerate(progress_bar):
-            if batch_idx == 0:
-                print("1D shape:", features_1d.shape, "2D shape:", features_2d.shape)
-                print("1D stats:", features_1d.mean().item(), features_1d.std().item())
-                print("2D stats:", features_2d.mean().item(), features_2d.std().item())
-                assert not torch.isnan(features_1d).any(), "NaN in 1D features"
-                assert not torch.isinf(features_1d).any(), "Inf in 1D features"
-                assert not torch.isnan(features_2d).any(), "NaN in 2D features"
-                assert not torch.isinf(features_2d).any(), "Inf in 2D features"
             features_1d = features_1d.to(self.device)
             features_2d = features_2d.to(self.device)
             labels = labels.to(self.device)
+
+            # --- Input Sanity Checks ---
+            if torch.isnan(features_1d).any():
+                print(f"NaN detected in features_1d at batch {batch_idx}!")
+                # Potentially log filenames or skip batch
+            if torch.isinf(features_1d).any():
+                print(f"Inf detected in features_1d at batch {batch_idx}!")
+            if torch.isnan(features_2d).any():
+                print(f"NaN detected in features_2d at batch {batch_idx}!")
+            if torch.isinf(features_2d).any():
+                print(f"Inf detected in features_2d at batch {batch_idx}!")
+            # Optional: Check value range if expected (e.g., features_2d should be ~[0,1] before normalization)
+            # --------------------------
 
             self.optimizer.zero_grad()
             outputs = self.model(features_1d, features_2d)
@@ -130,17 +135,20 @@ class Trainer:
         progress_bar = tqdm(self.val_loader, desc=f"Epoch {self.current_epoch+1}/{self.num_epochs} Validation", leave=False)
         with torch.no_grad():
             for batch_idx, (features_1d, features_2d, labels, _) in enumerate(progress_bar):
-                if batch_idx == 0:
-                    print("1D shape:", features_1d.shape, "2D shape:", features_2d.shape)
-                    print("1D stats:", features_1d.mean().item(), features_1d.std().item())
-                    print("2D stats:", features_2d.mean().item(), features_2d.std().item())
-                    assert not torch.isnan(features_1d).any(), "NaN in 1D features"
-                    assert not torch.isinf(features_1d).any(), "Inf in 1D features"
-                    assert not torch.isnan(features_2d).any(), "NaN in 2D features"
-                    assert not torch.isinf(features_2d).any(), "Inf in 2D features"
                 features_1d = features_1d.to(self.device)
                 features_2d = features_2d.to(self.device)
                 labels = labels.to(self.device)
+
+                # --- Input Sanity Checks ---
+                if torch.isnan(features_1d).any():
+                    print(f"NaN detected in features_1d during validation at batch {batch_idx}!")
+                if torch.isinf(features_1d).any():
+                    print(f"Inf detected in features_1d during validation at batch {batch_idx}!")
+                if torch.isnan(features_2d).any():
+                    print(f"NaN detected in features_2d during validation at batch {batch_idx}!")
+                if torch.isinf(features_2d).any():
+                    print(f"Inf detected in features_2d during validation at batch {batch_idx}!")
+                # --------------------------
 
                 outputs = self.model(features_1d, features_2d)
                 loss = self.criterion(outputs, labels)
@@ -386,7 +394,7 @@ def main():
     if os.path.exists(stats_file):
         print(f"Loading dataset statistics from: {stats_file}")
         try:
-            stats = torch.load(stats_file, map_location=device)
+            stats = torch.load(stats_file)
             dataset_mean_1d = stats['mean_1d'].float()
             dataset_std_1d = stats['std_1d'].float()
             dataset_mean_2d = stats['mean_2d'].float()
