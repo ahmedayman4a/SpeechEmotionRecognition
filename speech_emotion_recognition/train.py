@@ -447,7 +447,7 @@ def main():
         optimizer = optim.SGD(model.parameters(), lr=config.LEARNING_RATE, momentum=0.9, weight_decay=config.WEIGHT_DECAY)
     else:
         raise ValueError(f"Unsupported optimizer: {config.OPTIMIZER}")
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
     print(f"Optimizer: {config.OPTIMIZER}, Loss: CrossEntropyLoss")
     
     # --- Scheduler --- 
