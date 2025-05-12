@@ -1,124 +1,142 @@
 import torch
 import torch.nn as nn
 
-class ResidualBlock1D(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, 
-                 activation_module: nn.Module = None, dropout_rate=0.0):
-        super(ResidualBlock1D, self).__init__()
-        
-        if activation_module is None:
-            activation_module = nn.ReLU(inplace=True)
-            
-        padding = kernel_size // 2 # Same padding
+class Bottleneck1D(nn.Module):
+    """Residual Bottleneck Block for 1D CNN"""
+    expansion = 4 # Bottleneck expands channels by 4
 
-        self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding, bias=False)
-        self.bn1 = nn.BatchNorm1d(out_channels)
-        self.act1 = activation_module
-        self.dropout = nn.Dropout(dropout_rate)
-        self.conv2 = nn.Conv1d(out_channels, out_channels, kernel_size, 1, padding, bias=False)
-        self.bn2 = nn.BatchNorm1d(out_channels)
+    def __init__(self, in_channels, bottleneck_channels, stride=1, downsample=None, activation_fn=nn.ReLU(inplace=True)):
+        super().__init__()
+        out_channels = bottleneck_channels * self.expansion
         
-        self.shortcut = nn.Sequential()
-        if stride != 1 or in_channels != out_channels:
-            self.shortcut = nn.Sequential(
-                nn.Conv1d(in_channels, out_channels, kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm1d(out_channels)
-            )
-        self.final_act = activation_module
+        # 1x1 conv
+        self.conv1 = nn.Conv1d(in_channels, bottleneck_channels, kernel_size=1, bias=False)
+        # Using GroupNorm(1, ...) as a LayerNorm alternative suitable for Conv layers
+        self.norm1 = nn.GroupNorm(1, bottleneck_channels) 
+        
+        # 3x1 conv (with stride for downsampling)
+        self.conv2 = nn.Conv1d(bottleneck_channels, bottleneck_channels, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.norm2 = nn.GroupNorm(1, bottleneck_channels)
+        
+        # 1x1 conv
+        self.conv3 = nn.Conv1d(bottleneck_channels, out_channels, kernel_size=1, bias=False)
+        self.norm3 = nn.GroupNorm(1, out_channels)
+        
+        self.activation = activation_fn
+        self.downsample = downsample # For residual connection if shapes mismatch
 
     def forward(self, x):
-        residual = self.shortcut(x)
+        identity = x
+
         out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.act1(out)
-        out = self.dropout(out)
+        out = self.norm1(out)
+        out = self.activation(out)
+
         out = self.conv2(out)
-        out = self.bn2(out)
-        out += residual
-        out = self.final_act(out)
+        out = self.norm2(out)
+        out = self.activation(out)
+
+        out = self.conv3(out)
+        out = self.norm3(out)
+
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out += identity
+        out = self.activation(out) # Final activation after adding residual
+
         return out
 
+
 class CNN1D(nn.Module):
-    def __init__(self, 
-                 input_channels=1, 
-                 num_features_input_dim=162, # Length of the input 1D sequence
-                 dropout_rate=0.3, 
-                 activation_module: nn.Module = None,
-                 initial_out_channels=64, # Default, can be overridden from config
-                 block_channels=[64, 128, 256, 512], # Default, can be overridden from config
-                 output_feature_size=256 # Target size after GAP for combined model
-                 ):
-        super(CNN1D, self).__init__()
+    def __init__(self, input_channels=1, num_features_dim=162, # Keep input dims for clarity
+                 block=Bottleneck1D, layers=[2, 2, 2, 2], # ResNet-18/34 like depth
+                 initial_out_channels=64, # Base channel count
+                 activation_name='relu', 
+                 dropout_rate=0.3):
+        super().__init__()
+        
+        if activation_name.lower() == 'relu':
+            self.activation = nn.ReLU(inplace=True)
+        elif activation_name.lower() == 'silu' or activation_name.lower() == 'swish':
+            self.activation = nn.SiLU(inplace=True)
+        else:
+            raise ValueError(f"Unsupported activation: {activation_name}")
+            
+        self.in_channels = initial_out_channels # Track current channels for stages
+        
+        # Initial Convolutional Layer (ResNet-like)
+        self.conv1 = nn.Conv1d(input_channels, self.in_channels, kernel_size=7, stride=2, padding=3, bias=False)
+        self.norm1 = nn.GroupNorm(1, self.in_channels)
+        self.pool1 = nn.MaxPool1d(kernel_size=3, stride=2, padding=1)
 
-        if activation_module is None:
-            activation_module = nn.ReLU(inplace=True)
-        
-        self.stem = nn.Sequential(
-            nn.Conv1d(input_channels, initial_out_channels, kernel_size=7, stride=2, padding=3, bias=False), # L_out = ceil(162/2) = 81
-            nn.BatchNorm1d(initial_out_channels),
-            activation_module,
-            nn.MaxPool1d(kernel_size=3, stride=2, padding=1, ceil_mode=True) # L_out = ceil(81/2) = 41
-        )
-        
-        current_channels = initial_out_channels
-        self.res_blocks = nn.ModuleList()
-        
-        # Example: Four residual blocks with increasing channels and some max pooling
-        # Adjust strides and pooling to manage sequence length reduction
-        
-        # Block 1
-        self.res_blocks.append(ResidualBlock1D(current_channels, block_channels[0], dropout_rate=dropout_rate, activation_module=activation_module))
-        current_channels = block_channels[0]
-        self.res_blocks.append(nn.MaxPool1d(kernel_size=2, stride=2, ceil_mode=True)) # L_out = ceil(41/2) = 21
-        
-        # Block 2
-        self.res_blocks.append(ResidualBlock1D(current_channels, block_channels[1], dropout_rate=dropout_rate, activation_module=activation_module))
-        current_channels = block_channels[1]
-        self.res_blocks.append(nn.MaxPool1d(kernel_size=2, stride=2, ceil_mode=True)) # L_out = ceil(21/2) = 11
-        
-        # Block 3
-        self.res_blocks.append(ResidualBlock1D(current_channels, block_channels[2], dropout_rate=dropout_rate, activation_module=activation_module))
-        current_channels = block_channels[2]
-        
+        # Residual Stages
+        self.layer1 = self._make_layer(block, initial_out_channels, layers[0], activation_fn=self.activation)
+        self.layer2 = self._make_layer(block, initial_out_channels * 2, layers[1], stride=2, activation_fn=self.activation)
+        self.layer3 = self._make_layer(block, initial_out_channels * 4, layers[2], stride=2, activation_fn=self.activation)
+        self.layer4 = self._make_layer(block, initial_out_channels * 8, layers[3], stride=2, activation_fn=self.activation)
 
-        # Global Average Pooling to get fixed size output
-        self.global_avg_pool = nn.AdaptiveAvgPool1d(1)
-        
-        # Final linear layer to project to the desired output_feature_size
-        # The number of channels from the last res block (current_channels) is the input to this linear layer
-        self.final_fc = nn.Linear(current_channels, output_feature_size)
-        
-        # For verification of output size calculation during development
-        # self._calculated_feature_size = self._get_conv_output_size(input_channels, num_features_input_dim)
-        # print(f"CNN1D output before final_fc will have {current_channels} channels after GAP.")
-        # print(f"CNN1D final output size: {output_feature_size}")
+        # Global Average Pooling and Output Dimension
+        self.avgpool = nn.AdaptiveAvgPool1d(1)
+        self.flatten = nn.Flatten(start_dim=1)
+        self._output_dim = initial_out_channels * 8 * block.expansion # Output dim is channels after last stage
 
+        # Optional Dropout before final MLP head in CombinedModel
+        self.dropout = nn.Dropout(dropout_rate) if dropout_rate > 0 else nn.Identity()
 
-    def _get_conv_output_size(self, input_channels, num_features_input_dim):
-        # For verification
-        with torch.no_grad():
-            dummy_input = torch.zeros(1, input_channels, num_features_input_dim)
-            x = self.stem(dummy_input)
-            for block_or_pool in self.res_blocks:
-                x = block_or_pool(x)
-            x = self.global_avg_pool(x)
-            x = torch.flatten(x, 1)
-            # Before final_fc
-            return x.shape[1] 
+        # Weight Initialization (optional but recommended)
+        for m in self.modules():
+            if isinstance(m, nn.Conv1d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            elif isinstance(m, (nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+
+    def _make_layer(self, block, bottleneck_channels, num_blocks, stride=1, activation_fn=nn.ReLU(inplace=True)):
+        downsample = None
+        out_channels = bottleneck_channels * block.expansion
+        
+        # Downsample if stride > 1 or in_channels doesn't match out_channels
+        if stride != 1 or self.in_channels != out_channels:
+            downsample = nn.Sequential(
+                nn.Conv1d(self.in_channels, out_channels, kernel_size=1, stride=stride, bias=False),
+                nn.GroupNorm(1, out_channels),
+            )
+
+        layers = []
+        layers.append(block(self.in_channels, bottleneck_channels, stride, downsample, activation_fn=activation_fn))
+        self.in_channels = out_channels # Update in_channels for subsequent blocks
+        for _ in range(1, num_blocks):
+            layers.append(block(self.in_channels, bottleneck_channels, activation_fn=activation_fn))
+
+        return nn.Sequential(*layers)
 
     def forward(self, x):
-        # x input shape: (batch_size, input_channels, num_features_input_dim) -> (N, 1, 162)
-        x = self.stem(x)
-        for block_or_pool in self.res_blocks:
-            x = block_or_pool(x)
+        # x initial shape: [N, C_in, L_in] = [N, 1, 162] for this project
         
-        x = self.global_avg_pool(x) # Output: (N, current_channels, 1)
-        x = torch.flatten(x, 1)     # Output: (N, current_channels)
-        x = self.final_fc(x)        # Output: (N, output_feature_size)
+        x = self.conv1(x)   # Example output: [N, 64, L_in/2]
+        x = self.norm1(x)
+        x = self.activation(x)
+        x = self.pool1(x)   # Example output: [N, 64, L_in/4]
+
+        x = self.layer1(x)  # Example output: [N, 64*4, L_in/4]
+        x = self.layer2(x)  # Example output: [N, 128*4, L_in/8]
+        x = self.layer3(x)  # Example output: [N, 256*4, L_in/16]
+        x = self.layer4(x)  # Example output: [N, 512*4, L_in/32]
+
+        x = self.avgpool(x) # Output: [N, 512*4, 1]
+        x = self.flatten(x) # Output: [N, 512*4]
+        x = self.dropout(x) # Apply dropout
+
         return x
 
+    @property
+    def output_dim(self):
+        """Returns the output dimension of the flattened features."""
+        return self._output_dim
+
 if __name__ == '__main__':
-    TARGET_OUTPUT_FEATURES = 256 # Example target size
+    TARGET_OUTPUT_FEATURES = 1024 # Example target size
     INITIAL_CHANNELS_1D = 32 # Example different initial channels for testing
     BLOCK_CHANNELS_1D = [32, 64, 128, 256] # Example different block channels for testing
 
@@ -126,11 +144,11 @@ if __name__ == '__main__':
     print(f"Testing CNN1D with initial_channels={INITIAL_CHANNELS_1D}, block_channels={BLOCK_CHANNELS_1D}")
     model1d_relu = CNN1D(
         input_channels=1, 
-        num_features_input_dim=162, 
-        activation_module=nn.ReLU(inplace=True),
+        num_features_dim=162, 
+        activation_name='relu',
         initial_out_channels=INITIAL_CHANNELS_1D,
-        block_channels=BLOCK_CHANNELS_1D,
-        output_feature_size=TARGET_OUTPUT_FEATURES
+        layers=BLOCK_CHANNELS_1D,
+        dropout_rate=0.3
     )
     dummy_input_1d = torch.randn(4, 1, 162) 
     output_1d_relu = model1d_relu(dummy_input_1d)
@@ -143,11 +161,11 @@ if __name__ == '__main__':
     print(f"\nTesting CNN1D (SiLU) with initial_channels={INITIAL_CHANNELS_1D}, block_channels={BLOCK_CHANNELS_1D}")
     model1d_silu = CNN1D(
         input_channels=1, 
-        num_features_input_dim=162, 
-        activation_module=nn.SiLU(),
+        num_features_dim=162, 
+        activation_name='silu',
         initial_out_channels=INITIAL_CHANNELS_1D,
-        block_channels=BLOCK_CHANNELS_1D,
-        output_feature_size=TARGET_OUTPUT_FEATURES
+        layers=BLOCK_CHANNELS_1D,
+        dropout_rate=0.3
     )
     output_1d_silu = model1d_silu(dummy_input_1d)
     print(f"CNN1D (SiLU ResNet) input shape: {dummy_input_1d.shape}")

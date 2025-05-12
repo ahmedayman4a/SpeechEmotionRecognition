@@ -90,19 +90,6 @@ class Trainer:
             features_2d = features_2d.to(self.device)
             labels = labels.to(self.device)
 
-            # --- Input Sanity Checks ---
-            if torch.isnan(features_1d).any():
-                print(f"NaN detected in features_1d at batch {batch_idx}!")
-                # Potentially log filenames or skip batch
-            if torch.isinf(features_1d).any():
-                print(f"Inf detected in features_1d at batch {batch_idx}!")
-            if torch.isnan(features_2d).any():
-                print(f"NaN detected in features_2d at batch {batch_idx}!")
-            if torch.isinf(features_2d).any():
-                print(f"Inf detected in features_2d at batch {batch_idx}!")
-            # Optional: Check value range if expected (e.g., features_2d should be ~[0,1] before normalization)
-            # --------------------------
-
             self.optimizer.zero_grad()
             outputs = self.model(features_1d, features_2d)
             loss = self.criterion(outputs, labels)
@@ -138,17 +125,6 @@ class Trainer:
                 features_1d = features_1d.to(self.device)
                 features_2d = features_2d.to(self.device)
                 labels = labels.to(self.device)
-
-                # --- Input Sanity Checks ---
-                if torch.isnan(features_1d).any():
-                    print(f"NaN detected in features_1d during validation at batch {batch_idx}!")
-                if torch.isinf(features_1d).any():
-                    print(f"Inf detected in features_1d during validation at batch {batch_idx}!")
-                if torch.isnan(features_2d).any():
-                    print(f"NaN detected in features_2d during validation at batch {batch_idx}!")
-                if torch.isinf(features_2d).any():
-                    print(f"Inf detected in features_2d during validation at batch {batch_idx}!")
-                # --------------------------
 
                 outputs = self.model(features_1d, features_2d)
                 loss = self.criterion(outputs, labels)
@@ -458,19 +434,16 @@ def main():
 
     # --- Model --- 
     model = CombinedModel(
-        num_classes=config.NUM_CLASSES,
-        cnn1d_input_channels=config.CNN1D_INPUT_CHANNELS,
-        cnn1d_num_features_dim=config.CNN1D_NUM_FEATURES_DIM,
-        cnn1d_initial_out_channels=config.CNN1D_INITIAL_OUT_CHANNELS,
-        cnn1d_block_channels=config.CNN1D_BLOCK_CHANNELS,
-        cnn1d_output_features=config.CNN1D_OUTPUT_FEATURES,
-        cnn2d_input_channels=config.CNN2D_INPUT_CHANNELS,
-        cnn2d_initial_out_channels=config.CNN2D_INITIAL_OUT_CHANNELS,
-        cnn2d_block_channels=config.CNN2D_BLOCK_CHANNELS,
-        cnn2d_output_features=config.CNN2D_OUTPUT_FEATURES,
-        cnn_dropout_rate=config.CNN_DROPOUT_RATE,
-        mlp_dropout_rate=config.MLP_DROPOUT_RATE,
-        activation_name='relu'
+        num_classes=config.MODEL_PARAMS['num_classes'],
+        cnn1d_input_channels=config.MODEL_PARAMS['cnn1d_input_channels'],
+        cnn1d_num_features_dim=config.MODEL_PARAMS['cnn1d_num_features_dim'],
+        cnn1d_initial_out_channels=config.MODEL_PARAMS['cnn1d_initial_out_channels'],
+        cnn2d_input_channels=config.MODEL_PARAMS['cnn2d_input_channels'],
+        cnn2d_initial_out_channels=config.MODEL_PARAMS['cnn2d_initial_out_channels'],
+        cnn_dropout_rate=config.MODEL_PARAMS['cnn_dropout_rate'],
+        mlp_hidden_units=config.MODEL_PARAMS['mlp_hidden_units'],
+        mlp_dropout_rate=config.MODEL_PARAMS['mlp_dropout_rate'],
+        activation_name=config.MODEL_PARAMS['activation_name']
     ).to(device)
     print("Model initialized.")
     wandb.watch(model, log='all', log_freq=100) # Log model gradients/parameters

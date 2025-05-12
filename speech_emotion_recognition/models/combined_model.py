@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 try:
     from .cnn_1d import CNN1D
@@ -29,68 +30,66 @@ class MLPHead(nn.Module):
 
 class CombinedModel(nn.Module):
     def __init__(self, 
-                 num_classes=6, 
-                 cnn1d_input_channels=1, 
-                 cnn1d_num_features_dim=162,
-                 cnn1d_initial_out_channels=64,
-                 cnn1d_block_channels=[64, 128, 256, 512],
-                 cnn1d_output_features=256, 
-                 cnn2d_input_channels=1,
-                 cnn2d_initial_out_channels=32,
-                 cnn2d_block_channels=[32, 64, 128, 256],
-                 cnn2d_output_features=512, 
-                 cnn_dropout_rate=0.3, 
-                 mlp_dropout_rate=0.5, 
-                 activation_name='relu'): # 'relu' or 'silu'
+                 num_classes: int,
+                 cnn1d_input_channels: int = 1,
+                 cnn1d_num_features_dim: int = 162,
+                 cnn1d_initial_out_channels: int = 64,
+                 cnn2d_input_channels: int = 1,
+                 cnn2d_initial_out_channels: int = 64,
+                 cnn_dropout_rate: float = 0.3,
+                 mlp_hidden_units: int = 128,
+                 mlp_dropout_rate: float = 0.5,
+                 activation_name: str = 'relu'): 
         super(CombinedModel, self).__init__()
 
         if activation_name.lower() == 'relu':
-            activation_module = nn.ReLU(inplace=True)
-        elif activation_name.lower() == 'silu':
-            activation_module = nn.SiLU() # No inplace for SiLU generally
+            activation_fn = nn.ReLU(inplace=True)
+        elif activation_name.lower() == 'silu' or activation_name.lower() == 'swish':
+            activation_fn = nn.SiLU(inplace=True)
         else:
             raise ValueError(f"Unsupported activation: {activation_name}")
 
+        # Instantiate the CNN backbones (using ResNet-like structure now)
         self.cnn1d = CNN1D(
             input_channels=cnn1d_input_channels,
-            num_features_input_dim=cnn1d_num_features_dim,
+            num_features_dim=cnn1d_num_features_dim,
             initial_out_channels=cnn1d_initial_out_channels,
-            block_channels=cnn1d_block_channels,
-            dropout_rate=cnn_dropout_rate,
-            activation_module=activation_module,
-            output_feature_size=cnn1d_output_features # Pass this to the new CNN1D
+            # layers=[2, 2, 2, 2], # Using default layers from CNN1D
+            activation_name=activation_name,
+            dropout_rate=cnn_dropout_rate
         )
-
         self.cnn2d = CNN2D(
             input_channels=cnn2d_input_channels,
             initial_out_channels=cnn2d_initial_out_channels,
-            block_channels=cnn2d_block_channels,
-            dropout_rate=cnn_dropout_rate,
-            activation_module=activation_module,
-            output_feature_size=cnn2d_output_features # Pass this to the new CNN2D
+            # layers=[2, 2, 2, 2], # Using default layers from CNN2D
+            activation_name=activation_name,
+            dropout_rate=cnn_dropout_rate
         )
 
-        # Total features after concatenation
-        self.total_features = cnn1d_output_features + cnn2d_output_features
-        
-        self.mlp_head = MLPHead(
-            input_size=self.total_features,
-            num_classes=num_classes,
-            mlp_dropout_rate=mlp_dropout_rate,
-            activation_module=activation_module
+        # Get output dimensions from the CNNs
+        cnn1d_output_dim = self.cnn1d.output_dim
+        cnn2d_output_dim = self.cnn2d.output_dim
+        combined_features_dim = cnn1d_output_dim + cnn2d_output_dim
+        print(f"CombinedModel: CNN1D out={cnn1d_output_dim}, CNN2D out={cnn2d_output_dim}, Total={combined_features_dim}")
+
+        # MLP Head
+        self.mlp_head = nn.Sequential(
+            nn.Linear(combined_features_dim, mlp_hidden_units),
+            # Using GroupNorm for consistency, acts like LayerNorm on the features
+            nn.GroupNorm(1, mlp_hidden_units), 
+            activation_fn,
+            nn.Dropout(mlp_dropout_rate),
+            nn.Linear(mlp_hidden_units, num_classes)
         )
 
     def forward(self, x_1d, x_2d):
-        # x_1d: (batch_size, cnn1d_input_channels, cnn1d_num_features_dim) e.g. (N, 1, 162)
-        # x_2d: (batch_size, cnn2d_input_channels, H, W_variable) e.g. (N, 1, 64, 188)
+        features_1d = self.cnn1d(x_1d)
+        features_2d = self.cnn2d(x_2d)
         
-        features_1d = self.cnn1d(x_1d) # Expected output: (N, cnn1d_output_features)
-        features_2d = self.cnn2d(x_2d) # Expected output: (N, cnn2d_output_features)
+        combined_features = torch.cat((features_1d, features_2d), dim=1)
         
-        combined_features = torch.cat((features_1d, features_2d), dim=1) # (N, total_features)
-        
-        output_logits = self.mlp_head(combined_features)
-        return output_logits
+        output = self.mlp_head(combined_features)
+        return output
 
 if __name__ == '__main__':
     batch_size = 4
@@ -105,13 +104,10 @@ if __name__ == '__main__':
         'cnn1d_input_channels': 1,
         'cnn1d_num_features_dim': cnn1d_feat_len,
         'cnn1d_initial_out_channels': 64, # Example, could be from a global config
-        'cnn1d_block_channels': [64, 128, 256, 512], # Example
-        'cnn1d_output_features': 256, 
         'cnn2d_input_channels': 1,
-        'cnn2d_initial_out_channels': 32, # Example
-        'cnn2d_block_channels': [32, 64, 128, 256], # Example
-        'cnn2d_output_features': 512, 
+        'cnn2d_initial_out_channels': 64, # Example
         'cnn_dropout_rate': 0.2,
+        'mlp_hidden_units': 128,
         'mlp_dropout_rate': 0.4,
         'activation_name': 'relu'
     }
@@ -120,15 +116,15 @@ if __name__ == '__main__':
     combined_model_relu = CombinedModel(**config_combined)
     
     dummy_input_1d = torch.randn(batch_size, config_combined['cnn1d_input_channels'], config_combined['cnn1d_num_features_dim'])
-    dummy_input_2d = torch.randn(batch_size, config_combined['cnn2d_input_channels'], cnn2d_h, cnn2d_w_variable)
+    dummy_input_2d = torch.randn(batch_size, config_combined['cnn2d_input_channels'], 64, 64)
     
     output_combined_relu = combined_model_relu(dummy_input_1d, dummy_input_2d)
     
     print(f"CombinedModel (ReLU) input 1D shape: {dummy_input_1d.shape}")
     print(f"CombinedModel (ReLU) input 2D shape: {dummy_input_2d.shape}")
     print(f"CombinedModel (ReLU) output shape: {output_combined_relu.shape}")
-    assert output_combined_relu.shape == (batch_size, num_classes_test), \
-        f"Expected output shape ({batch_size}, {num_classes_test}), got {output_combined_relu.shape}"
+    assert output_combined_relu.shape == (batch_size, config_combined['num_classes']), \
+        f"Expected output shape ({batch_size}, {config_combined['num_classes']}), got {output_combined_relu.shape}"
     print("CombinedModel (ReLU) test passed.")
 
     # Test with SiLU
@@ -141,15 +137,15 @@ if __name__ == '__main__':
     print(f"CombinedModel (SiLU) input 1D shape: {dummy_input_1d.shape}")
     print(f"CombinedModel (SiLU) input 2D shape: {dummy_input_2d.shape}")
     print(f"CombinedModel (SiLU) output shape: {output_combined_silu.shape}")
-    assert output_combined_silu.shape == (batch_size, num_classes_test), \
-        f"Expected output shape ({batch_size}, {num_classes_test}), got {output_combined_silu.shape}"
+    assert output_combined_silu.shape == (batch_size, config_combined['num_classes']), \
+        f"Expected output shape ({batch_size}, {config_combined['num_classes']}), got {output_combined_silu.shape}"
     print("CombinedModel (SiLU) test passed.")
 
     # Test with another variable width for 2D input
-    dummy_input_2d_v2 = torch.randn(batch_size, config_combined['cnn2d_input_channels'], cnn2d_h, cnn2d_w_variable // 2)
+    dummy_input_2d_v2 = torch.randn(batch_size, config_combined['cnn2d_input_channels'], 64, 32)
     output_combined_relu_v2 = combined_model_relu(dummy_input_1d, dummy_input_2d_v2)
-    print(f"\nCombinedModel (ReLU) input 2D shape (width={cnn2d_w_variable // 2}): {dummy_input_2d_v2.shape}")
-    print(f"CombinedModel (ReLU) output shape (width={cnn2d_w_variable // 2}): {output_combined_relu_v2.shape}")
-    assert output_combined_relu_v2.shape == (batch_size, num_classes_test), \
-        f"Expected output shape ({batch_size}, {num_classes_test}), got {output_combined_relu_v2.shape}"
+    print(f"\nCombinedModel (ReLU) input 2D shape (width={32}): {dummy_input_2d_v2.shape}")
+    print(f"CombinedModel (ReLU) output shape (width={32}): {output_combined_relu_v2.shape}")
+    assert output_combined_relu_v2.shape == (batch_size, config_combined['num_classes']), \
+        f"Expected output shape ({batch_size}, {config_combined['num_classes']}), got {output_combined_relu_v2.shape}"
     print("CombinedModel (ReLU) with different 2D width test passed.") 
