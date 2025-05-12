@@ -88,8 +88,10 @@ class PaperCombinedFeatureExtractor:
                  n_fft_1d=512, hop_length_1d=160, 
                  n_mfcc_1d=13, n_mels_for_1d_feat=135, # 1+12+13+1+135 = 162 features
                  # Params for 2D image features
-                 n_fft_2d=1024, hop_length_2d=256, n_mels_2d=64, 
-                 log_spec_img=True, fmax_spec_img=10000): # Removed img_height, img_width
+                 n_fft_2d=1024, hop_length_2d=256, n_mels_2d=64,
+                 log_spec_img=True,  fmax_spec_img=8000,
+                 dataset_mean_1d=None, dataset_std_1d=None, 
+                 dataset_mean_2d=None, dataset_std_2d=None):
         
         self.sr = sr
         # 1D feature params
@@ -102,10 +104,14 @@ class PaperCombinedFeatureExtractor:
         self.n_fft_2d = n_fft_2d
         self.hop_length_2d = hop_length_2d
         self.n_mels_2d = n_mels_2d # This is the height of the spectrogram
-        # self.img_height = img_height # Removed
-        # self.img_width = img_width   # Removed
         self.log_spec_img = log_spec_img
-        self.fmax_spec_img = fmax_spec_img if fmax_spec_img is not None else sr // 2
+        self.fmax_spec_img = fmax_spec_img
+
+        
+        self.dataset_mean_1d = dataset_mean_1d
+        self.dataset_std_1d = dataset_std_1d
+        self.dataset_mean_2d = dataset_mean_2d
+        self.dataset_std_2d = dataset_std_2d
 
         # Torchaudio transform for 2D Mel spectrogram (Path B)
         self.mel_spectrogram_transform_2d = T.MelSpectrogram(
@@ -217,6 +223,21 @@ class PaperCombinedFeatureExtractor:
         batch_features_1d = torch.stack(batch_features_1d_list, dim=0) # [B, 1, 162]
         batch_features_2d = torch.stack(batch_features_2d_list, dim=0) # [B, 1, H, W]
         
+        # Apply dataset-level normalization if stats are provided and valid
+        if self.dataset_mean_1d is not None and self.dataset_std_1d is not None \
+           and self.dataset_std_1d.min() > 1e-9: # Check std is valid
+            # Ensure stats are on the same device and correct shape for broadcasting
+            mean_1d = self.dataset_mean_1d.to(batch_features_1d.device).view(1, -1)
+            std_1d = self.dataset_std_1d.to(batch_features_1d.device).view(1, -1)
+            batch_features_1d = (batch_features_1d - mean_1d) / std_1d
+
+        if self.dataset_mean_2d is not None and self.dataset_std_2d is not None \
+           and self.dataset_std_2d > 1e-9: # Check std is valid
+            # Global normalization for 2D features (mean/std are scalars)
+            mean_2d = self.dataset_mean_2d.to(batch_features_2d.device)
+            std_2d = self.dataset_std_2d.to(batch_features_2d.device)
+            batch_features_2d = (batch_features_2d - mean_2d) / std_2d
+            
         return batch_features_1d, batch_features_2d
 
 if __name__ == '__main__':

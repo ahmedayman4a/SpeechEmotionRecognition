@@ -376,12 +376,38 @@ def main():
         normalize_audio=config.NORMALIZE_AUDIO,
         frame_ms=config.FRAME_MS_VAD
     )
+
+    # --- Load Dataset Statistics ---
+    dataset_mean_1d = None
+    dataset_std_1d = None
+    dataset_mean_2d = None
+    dataset_std_2d = None
+    stats_file = config.DATASET_STATS_FILE
+    if os.path.exists(stats_file):
+        print(f"Loading dataset statistics from: {stats_file}")
+        try:
+            stats = torch.load(stats_file, map_location=device) # Load directly to target device if possible
+            dataset_mean_1d = stats['mean_1d'].float() # Ensure float32
+            dataset_std_1d = stats['std_1d'].float()
+            dataset_mean_2d = stats['mean_2d'].float()
+            dataset_std_2d = stats['std_2d'].float()
+            print("Successfully loaded and parsed dataset statistics.")
+        except Exception as e:
+            print(f"Error loading or parsing statistics file {stats_file}: {e}")
+    else:
+        print(f"Dataset statistics file not found at '{stats_file}'.")
+    
+    # --- Initialize Feature Extractor with Stats ---
     feature_extractor = PaperCombinedFeatureExtractor(
         sr=config.TARGET_SAMPLE_RATE,
         n_fft_1d=config.N_FFT_COMMON, hop_length_1d=config.HOP_LENGTH_COMMON,
         n_mfcc_1d=config.N_MFCC, n_mels_for_1d_feat=config.N_MELS_FOR_1D_FEAT,
         n_fft_2d=config.N_FFT_IMG, hop_length_2d=config.HOP_LENGTH_IMG, n_mels_2d=config.N_MELS_IMG,
-        log_spec_img=config.LOG_SPECTROGRAM_IMG, fmax_spec_img=config.UPPER_FREQ_LIMIT_KHZ * 1000 if config.UPPER_FREQ_LIMIT_KHZ else None
+        log_spec_img=config.LOG_SPECTROGRAM_IMG, fmax_spec_img=config.FMAX_IMG,
+        dataset_mean_1d=dataset_mean_1d,
+        dataset_std_1d=dataset_std_1d,
+        dataset_mean_2d=dataset_mean_2d,
+        dataset_std_2d=dataset_std_2d
     )
 
     # --- DataLoaders --- 

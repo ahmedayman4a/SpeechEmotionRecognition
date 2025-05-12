@@ -1,5 +1,10 @@
 # Speech Emotion Recognition Project Configuration
 
+import os
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
 # 1. Data Parameters
 DATA_DIR = "data/Crema"  # Path to the CREMA-D dataset containing .wav files
 NUM_CLASSES = 6  # SAD, ANG, DIS, FEA, HAP, NEU (for CREMA-D)
@@ -46,7 +51,6 @@ HOP_LENGTH_IMG = 256     # Hop length for 2D spectrogram image (affects width)
 IMG_HEIGHT = 64          # Target height of the spectrogram image (same as N_MELS_IMG)
 # IMG_WIDTH = 64           # REMOVED: Target width is no longer fixed, spectrogram width is variable
 LOG_SPECTROGRAM_IMG = True # Apply log to the spectrogram image values
-UPPER_FREQ_LIMIT_KHZ = 10 # As per paper for spectrogram images (10000 Hz)
 FMAX_IMG = 8000          # Maximum frequency for Mel spectrogram calculation (sr/2 for 16kHz)
 
 # 4. Model Parameters
@@ -54,16 +58,16 @@ FMAX_IMG = 8000          # Maximum frequency for Mel spectrogram calculation (sr
 CNN1D_INPUT_CHANNELS = 1
 CNN1D_NUM_FEATURES_DIM = 162 # This must match the output of 1D feature extraction
 CNN1D_INITIAL_OUT_CHANNELS = 32 # Initial channels after the stem conv
-CNN1D_BLOCK_CHANNELS = [32, 64, 128, 256] # Channels for each ResNet block stage in CNN1D
-CNN1D_OUTPUT_FEATURES = 256  # Output features from ResNet-based CNN1D, set in CombinedModel constructor
+CNN1D_BLOCK_CHANNELS = [32, 64, 128] # Channels for each ResNet block stage in CNN1D
+CNN1D_OUTPUT_FEATURES = 128  # Output features from ResNet-based CNN1D, set in CombinedModel constructor
 
 # CNN2D specific
 CNN2D_INPUT_CHANNELS = 1
 CNN2D_IMG_HEIGHT = N_MELS_IMG # Should match the processed image height (n_mels_2d)
 # CNN2D_IMG_WIDTH = IMG_WIDTH # REMOVED: Width is variable
 CNN2D_INITIAL_OUT_CHANNELS = 32 # Initial channels after the stem conv, paper: 32
-CNN2D_BLOCK_CHANNELS = [32, 64, 128, 256, 512] # Channels for each ResNet block stage in CNN2D. Paper used [32, 64, 512, 256]
-CNN2D_OUTPUT_FEATURES = 512 # Output features from ResNet-based CNN2D (after GAP), set in CombinedModel constructor
+CNN2D_BLOCK_CHANNELS = [32, 64, 512, 256] # Channels for each ResNet block stage in CNN2D. Paper used [32, 64, 512, 256]
+CNN2D_OUTPUT_FEATURES = 256 # Output features from ResNet-based CNN2D (after GAP), set in CombinedModel constructor
 
 # Shared for CNNs in CombinedModel
 CNN_DROPOUT_RATE = 0.3
@@ -73,7 +77,7 @@ MLP_DROPOUT_RATE = 0.5
 # Activation functions are set in model instantiation, can be nn.ReLU(inplace=True) or nn.SiLU()
 
 # 5. Training Parameters
-BATCH_SIZE = 64
+BATCH_SIZE = 256
 LEARNING_RATE = 0.001
 NUM_EPOCHS = 150 # Or use early stopping
 OPTIMIZER = 'Adam' # 'Adam', 'SGD', etc.
@@ -93,4 +97,9 @@ RANDOM_SEED = 42
 
 # Placeholder for paths if needed later for saving models, logs etc.
 MODEL_SAVE_DIR = "trained_models"
-LOG_DIR = "logs" 
+LOG_DIR = "logs"
+
+# --- Dataset Normalization Stats ---
+# Path to the file where dataset mean/std are saved
+# Run utils/dataset_stats.py to generate this file
+DATASET_STATS_FILE = os.path.join(os.path.dirname(__file__), 'dataset_stats.pt')
