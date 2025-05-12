@@ -115,6 +115,6 @@ MODEL_PARAMS = {
     'mlp_hidden_units': 128, # Hidden units in the final MLP head
     'mlp_dropout_rate': 0.6,
     
-    'activation_name': 'relu' # 'relu' or 'silu' (swish)
+    'activation_name': 'relu', # 'relu' or 'silu' (swish)
     'layers': [2, 2, 2, 2]
 }
