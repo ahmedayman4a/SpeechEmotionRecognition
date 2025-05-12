@@ -386,8 +386,8 @@ def main():
     if os.path.exists(stats_file):
         print(f"Loading dataset statistics from: {stats_file}")
         try:
-            stats = torch.load(stats_file, map_location=device) # Load directly to target device if possible
-            dataset_mean_1d = stats['mean_1d'].float() # Ensure float32
+            stats = torch.load(stats_file, map_location=device)
+            dataset_mean_1d = stats['mean_1d'].float()
             dataset_std_1d = stats['std_1d'].float()
             dataset_mean_2d = stats['mean_2d'].float()
             dataset_std_2d = stats['std_2d'].float()

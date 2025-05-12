@@ -6,6 +6,7 @@ import os
 import sys
 from torch.utils.data import Dataset, DataLoader
 import argparse
+from sklearn.model_selection import train_test_split
 
 # Add project root to path to allow sibling imports
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -18,6 +19,22 @@ from speech_emotion_recognition.data_loader.dataset import CremaDataset
 from speech_emotion_recognition.preprocessing.audio_preprocessor import AudioPreprocessor
 from speech_emotion_recognition.preprocessing.feature_extractor import PaperCombinedFeatureExtractor
 
+# --- Helper function to extract label from CREMA-D filename (copied from train.py) ---
+def parse_label_from_filename(filename, emotion_map):
+    """Helper function to extract label from CREMA-D filename."""
+    try:
+        parts = os.path.basename(filename).split('_')
+        if len(parts) > 2:
+            emotion_str = parts[2]
+            if emotion_str in emotion_map:
+                return emotion_map[emotion_str]
+    except Exception as e:
+        print(f"Warning: Error parsing filename {filename} for label: {e}")
+    # Default to a known key if parsing fails or emotion unknown, ensure the key exists in emotion_map
+    # Or handle more gracefully if a file absolutely cannot be labeled.
+    # Using 'NEU' as a default, assuming it's in config.EMOTION_LABELS
+    default_emotion_key = next(iter(emotion_map)) # Get first key as a fallback if NEU not present
+    return emotion_map.get('NEU', emotion_map.get(default_emotion_key, 0))
 
 
 # --- Simple Dataset for Stats Calculation ---
@@ -76,8 +93,9 @@ def create_stats_collate_fn(preprocessor, feature_extractor):
 
 # --- Main Calculation Function ---
 def calculate_mean_std(data_dir, save_path, batch_size=32, num_workers=4):
-    """Calculates and saves the mean and standard deviation for 1D and 2D features."""
-    print(f"Starting dataset statistics calculation for directory: {data_dir}")
+    """Calculates and saves the mean and std using ONLY the training split."""
+    print(f"Starting dataset statistics calculation using TRAINING SPLIT from: {data_dir}")
+    print(f"Splitting with seed={config.RANDOM_SEED}, 70/30 TrainVal/Test, then 95/5 Train/Val.")
     print(f"Using Batch Size: {batch_size}, Num Workers: {num_workers}")
 
     # Find all wav files recursively
@@ -92,10 +110,43 @@ def calculate_mean_std(data_dir, save_path, batch_size=32, num_workers=4):
         print(f"Error: No .wav files found in {data_dir} or its subdirectories.")
         return False
 
-    print(f"Found {len(all_files)} audio files.")
+    print(f"Found {len(all_files)} total audio files.")
 
-    # Create dataset and dataloader
-    stats_dataset = StatsCalculationDataset(all_files)
+    # Parse labels for stratification
+    print("Parsing labels for stratification...")
+    all_labels = [parse_label_from_filename(f, config.EMOTION_LABELS) for f in all_files]
+
+    # Perform Train/Val/Test splits (identical to train.py logic)
+    test_split_size = 0.30
+    val_split_size  = 0.05
+    random_seed = config.RANDOM_SEED
+
+    print(f"Splitting data: Test size={test_split_size*100}%, Val Size={val_split_size*100:.2f}%")
+    
+    # 1. Split into Train+Val and Test
+    train_val_files, test_files, train_val_labels, _ = train_test_split(
+        all_files, all_labels, 
+        test_size=test_split_size, 
+        random_state=random_seed, 
+        stratify=all_labels
+    )
+
+    # 2. Split Train+Val into Train and Val
+    train_files, _, train_labels, _ = train_test_split(
+        train_val_files, train_val_labels, 
+        test_size=val_split_size, # Correct proportion for validation set size relative to train_val_files
+        random_state=random_seed, # Use same seed for consistency
+        stratify=train_val_labels
+    )
+
+    if not train_files:
+        print("Error: No files allocated to the training set after splitting.")
+        return False
+
+    print(f"Using {len(train_files)} files from the TRAINING split for statistics calculation.")
+
+    # Create dataset and dataloader USING ONLY TRAIN FILES
+    stats_dataset = StatsCalculationDataset(train_files) 
 
     # Initialize Preprocessor and Feature Extractor using config
     preprocessor = AudioPreprocessor(

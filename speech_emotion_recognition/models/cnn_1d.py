@@ -79,11 +79,7 @@ class CNN1D(nn.Module):
         # Block 3
         self.res_blocks.append(ResidualBlock1D(current_channels, block_channels[2], dropout_rate=dropout_rate, activation_module=activation_module))
         current_channels = block_channels[2]
-        # No pooling, or smaller pool if needed
         
-        # Block 4 - to increase depth and feature representation
-        self.res_blocks.append(ResidualBlock1D(current_channels, block_channels[3], dropout_rate=dropout_rate, activation_module=activation_module))
-        current_channels = block_channels[3]
 
         # Global Average Pooling to get fixed size output
         self.global_avg_pool = nn.AdaptiveAvgPool1d(1)
