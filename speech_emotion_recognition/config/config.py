@@ -61,7 +61,7 @@ CNN2D_IMG_HEIGHT = IMG_HEIGHT # Should match the processed image height
 CNN2D_IMG_WIDTH = IMG_WIDTH   # Should match the processed image width
 
 # CombinedModel general type
-MODEL_TYPE = "1d"  # Options: "combined", "1d", "2d"
+MODEL_TYPE = "2d"  # Options: "combined", "1d", "2d"
 
 # Shared for CNNs in CombinedModel
 CNN_DROPOUT_RATE = 0.3
