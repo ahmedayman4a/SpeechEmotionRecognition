@@ -1,0 +1,124 @@
+\section{Experimental Setup}
+
+\subsection{Data Splitting}
+
+Following the assignment requirements, we split the CREMA dataset as follows:
+\begin{itemize}
+    \item Training and Validation: 70\% of the dataset
+    \item Test: 30\% of the dataset
+    \item Of the 70\% training and validation portion, 5\% was used for validation
+\end{itemize}
+
+This resulted in approximately 4,960 training samples, 260 validation samples, and 2,222 test samples. We used stratified sampling with a random seed of 42 to ensure a balanced distribution of emotion classes across all splits.
+
+\begin{lstlisting}[language=Python, caption=Data Splitting Implementation]
+# Train/Val/Test Split
+train_val_files, test_files, train_val_labels, test_labels = train_test_split(
+    all_wav_files, all_labels, test_size=0.30, random_state=config.RANDOM_SEED, 
+    stratify=all_labels
+)
+val_split_proportion = 0.05 
+train_files, val_files, train_labels, val_labels = train_test_split(
+    train_val_files, train_val_labels, test_size=val_split_proportion, 
+    random_state=config.RANDOM_SEED, stratify=train_val_labels
+)
+\end{lstlisting}
+
+\subsection{Training Configuration}
+
+We conducted extensive experiments with different model configurations, focusing on three key variables:
+\begin{itemize}
+    \item \textbf{Model Type}: 1D CNN, 2D CNN, or Combined Model
+    \item \textbf{Activation Function}: ReLU, SiLU (Swish), or ELU
+    \item \textbf{Learning Rate}: 0.001, 0.01, or 0.1
+\end{itemize}
+
+This yielded a total of 27 experimental configurations (3 model types × 3 activation functions × 3 learning rates). All other hyperparameters were kept constant:
+
+\begin{table}[h]
+\centering
+\caption{Shared Hyperparameters Across All Experiments}
+\label{tab:hyperparams}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+Batch Size & 64 \\
+Optimizer & Adam \\
+Weight Decay & 1e-4 \\
+Dropout Rate (CNN layers) & 0.3 \\
+Dropout Rate (MLP layers) & 0.5 \\
+Number of Epochs & 150 \\
+Learning Rate Scheduler & Cosine Annealing with warm-up \\
+Warmup Epochs & 5 \\
+Loss Function & Cross Entropy \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Learning Rate Schedule}
+
+We implemented a learning rate schedule that combines linear warm-up with cosine annealing:
+
+\begin{itemize}
+    \item \textbf{Linear Warm-up}: For the first 5 epochs, the learning rate linearly increases from a very small value to the target learning rate
+    \item \textbf{Cosine Annealing}: After warm-up, the learning rate follows a cosine curve, gradually decreasing toward a minimum value (0.1\% of the initial rate)
+\end{itemize}
+
+\begin{lstlisting}[language=Python, caption=Learning Rate Scheduler Implementation]
+def get_scheduler(optimizer, warmup_epochs, max_epochs, steps_per_epoch):
+    """Creates a SequentialLR scheduler: Linear Warmup -> Cosine Annealing."""
+    warmup_steps = warmup_epochs * steps_per_epoch
+    main_steps = (max_epochs - warmup_epochs) * steps_per_epoch
+    
+    # Linear Warmup
+    def warmup_lambda(current_step):
+        return float(current_step) / float(max(1, warmup_steps))
+    
+    # Cosine Annealing requires T_max in steps
+    scheduler_warmup = LambdaLR(optimizer, lr_lambda=warmup_lambda)
+    scheduler_cosine = CosineAnnealingLR(optimizer, T_max=main_steps, 
+                                        eta_min=config.LEARNING_RATE * config.MIN_LR_FACTOR)
+    
+    scheduler = SequentialLR(optimizer, schedulers=[scheduler_warmup, scheduler_cosine], 
+                            milestones=[warmup_steps])
+    return scheduler
+\end{lstlisting}
+
+\subsection{Evaluation Metrics}
+
+We evaluated model performance using the following metrics:
+\begin{itemize}
+    \item \textbf{Accuracy}: The proportion of correctly classified samples
+    \item \textbf{F1-Score}: The harmonic mean of precision and recall (weighted average across classes)
+    \item \textbf{Precision}: The proportion of correct positive predictions (weighted average across classes)
+    \item \textbf{Recall}: The proportion of true positives correctly identified (weighted average across classes)
+    \item \textbf{Confusion Matrix}: To visualize class-specific performance and identify challenging emotion categories
+\end{itemize}
+
+All metrics were computed using the TorchMetrics library to ensure consistency and accuracy:
+
+\begin{lstlisting}[language=Python, caption=Evaluation Metrics Implementation]
+# Initialize metrics using torchmetrics
+num_target_classes = config.NUM_CLASSES
+self.test_metrics = torchmetrics.MetricCollection({
+    'accuracy': torchmetrics.Accuracy(task="multiclass", num_classes=num_target_classes),
+    'f1': torchmetrics.F1Score(task="multiclass", num_classes=num_target_classes, average='weighted'),
+    'precision': torchmetrics.Precision(task="multiclass", num_classes=num_target_classes, average='weighted'),
+    'recall': torchmetrics.Recall(task="multiclass", num_classes=num_target_classes, average='weighted')
+}).to(self.device)
+        
+self.conf_matrix_metric = torchmetrics.ConfusionMatrix(task="multiclass", num_classes=num_target_classes).to(self.device)
+\end{lstlisting}
+
+\subsection{Training and Evaluation Pipeline}
+
+We implemented a comprehensive training and evaluation pipeline that includes:
+\begin{itemize}
+    \item Logging and visualization using Weights \& Biases
+    \item Checkpoint saving and model selection based on validation loss
+    \item Final evaluation on the test set using the best checkpoint
+    \item Confusion matrix plotting and analysis
+\end{itemize}
+
+All experiments were conducted with the same random seed (42) to ensure reproducibility of results. 

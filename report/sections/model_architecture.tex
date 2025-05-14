@@ -1,0 +1,172 @@
+\section{Model Architecture}
+
+We implemented three distinct CNN architectures for speech emotion recognition: a 1D CNN for spectral features, a 2D CNN for mel spectrogram images, and a combined model that leverages both feature spaces. This section describes the design of each architecture.
+
+\subsection{1D CNN Architecture}
+
+The 1D CNN is designed to process the time series of spectral features extracted from the audio signals. The architecture consists of three convolutional blocks followed by a global average pooling layer and a fully connected layer. Figure \ref{fig:1d_cnn} illustrates the 1D CNN architecture.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/1d_cnn_architecture.png}
+    \caption{Architecture of the 1D CNN model for processing spectral features}
+    \label{fig:1d_cnn}
+\end{figure}
+
+Each convolutional block in the 1D CNN includes:
+\begin{itemize}
+    \item 1D Convolutional layer with increasing filter sizes (128, 256, 512)
+    \item Group Normalization for stable training
+    \item Activation function (ReLU, SiLU, or ELU, depending on the experiment)
+    \item Max Pooling layer with kernel size 2 and stride 2
+    \item Dropout layer with dropout rate 0.3
+\end{itemize}
+
+\begin{lstlisting}[language=Python, style=pseudocode, caption=1D CNN Architecture (Pseudocode)]
+class CNN1D:
+    input: Spectral features with shape [batch_size, channels, time]
+    
+    ConvBlock1:
+        Conv1D(in_channels=input_channels, out_channels=128, kernel_size=3, padding=1)
+        GroupNorm(channels=128)
+        Activation(ReLU/SiLU/ELU)
+        MaxPool1D(kernel_size=2, stride=2)
+        Dropout(p=0.3)
+    
+    ConvBlock2:
+        Conv1D(in_channels=128, out_channels=256, kernel_size=3, padding=1)
+        GroupNorm(channels=256)
+        Activation(ReLU/SiLU/ELU)
+        MaxPool1D(kernel_size=2, stride=2)
+        Dropout(p=0.3)
+    
+    ConvBlock3:
+        Conv1D(in_channels=256, out_channels=512, kernel_size=3, padding=1)
+        GroupNorm(channels=512)
+        Activation(ReLU/SiLU/ELU)
+        MaxPool1D(kernel_size=2, stride=2)
+        Dropout(p=0.3)
+    
+    GlobalAveragePooling1D()
+    
+    output: Feature vector of size 512
+\end{lstlisting}
+
+\subsection{2D CNN Architecture}
+
+The 2D CNN processes mel spectrogram images and consists of four convolutional blocks followed by global average pooling and a fully connected layer. Figure \ref{fig:2d_cnn} illustrates the 2D CNN architecture.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/2d_cnn_architecture.png}
+    \caption{Architecture of the 2D CNN model for processing mel spectrogram images}
+    \label{fig:2d_cnn}
+\end{figure}
+
+Each convolutional block in the 2D CNN includes:
+\begin{itemize}
+    \item 2D Convolutional layer with increasing filter sizes (32, 64, 512, 1024)
+    \item Group Normalization for stable training
+    \item Activation function (ReLU, SiLU, or ELU, depending on the experiment)
+    \item Max Pooling layer with kernel size (2,2) and stride 2
+    \item Dropout layer with dropout rate 0.3
+\end{itemize}
+
+\begin{lstlisting}[language=Python, style=pseudocode, caption=2D CNN Architecture (Pseudocode)]
+class CNN2D:
+    input: Mel spectrogram with shape [batch_size, channels, height, width]
+    
+    ConvBlock1:
+        Conv2D(in_channels=input_channels, out_channels=32, kernel_size=3x3, padding=1)
+        GroupNorm(channels=32)
+        Activation(ReLU/SiLU/ELU)
+        MaxPool2D(kernel_size=2x2, stride=2)
+        Dropout(p=0.3)
+    
+    ConvBlock2:
+        Conv2D(in_channels=32, out_channels=64, kernel_size=3x3, padding=1)
+        GroupNorm(channels=64)
+        Activation(ReLU/SiLU/ELU)
+        MaxPool2D(kernel_size=2x2, stride=2)
+        Dropout(p=0.3)
+    
+    ConvBlock3:
+        Conv2D(in_channels=64, out_channels=512, kernel_size=3x3, padding=1)
+        GroupNorm(channels=512)
+        Activation(ReLU/SiLU/ELU)
+        MaxPool2D(kernel_size=2x2, stride=2)
+        Dropout(p=0.3)
+    
+    ConvBlock4:
+        Conv2D(in_channels=512, out_channels=1024, kernel_size=3x3, padding=1)
+        GroupNorm(channels=1024)
+        Activation(ReLU/SiLU/ELU)
+        MaxPool2D(kernel_size=2x2, stride=2)
+        Dropout(p=0.3)
+    
+    GlobalAveragePooling2D()
+    
+    output: Feature vector of size 1024
+\end{lstlisting}
+
+\subsection{Combined Model Architecture}
+
+The combined model integrates both 1D and 2D feature paths, as shown in Figure \ref{fig:combined_model}. It processes spectral features using the 1D CNN path and mel spectrograms using the 2D CNN path, then concatenates the resulting feature vectors before passing them through a final fully connected layer for classification.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images/combined_model_architecture.png}
+    \caption{Architecture of the combined model integrating both 1D and 2D feature paths}
+    \label{fig:combined_model}
+\end{figure}
+
+The combined model architecture:
+\begin{itemize}
+    \item Processes 1D spectral features through the 1D CNN path
+    \item Processes 2D mel spectrograms through the 2D CNN path
+    \item Concatenates the output feature vectors (512 features from 1D CNN, 1024 features from 2D CNN)
+    \item Passes the combined features through a fully connected block with layer normalization and dropout
+    \item Outputs emotion class probabilities
+\end{itemize}
+
+\begin{lstlisting}[language=Python, style=pseudocode, caption=Combined Model Architecture (Pseudocode)]
+class CombinedModel:
+    inputs:
+        x_1d: Spectral features with shape [batch_size, channels, time]
+        x_2d: Mel spectrogram with shape [batch_size, channels, height, width]
+    
+    # 1D CNN Path
+    features_1d = CNN1D(x_1d)    # Output: [batch_size, 512]
+    
+    # 2D CNN Path  
+    features_2d = CNN2D(x_2d)    # Output: [batch_size, 1024]
+    
+    # Feature Fusion
+    combined_features = Concatenate([features_1d, features_2d])    # [batch_size, 1536]
+    
+    # Classification Head
+    FCLayer:
+        Linear(in_features=1536, out_features=128)
+        LayerNorm(128)
+        Activation(ReLU/SiLU/ELU)
+        Dropout(p=0.5)
+        Linear(in_features=128, out_features=num_classes)
+    
+    output: Class probabilities [batch_size, num_classes]
+\end{lstlisting}
+
+\subsection{Alternative Architectures Explored}
+
+In addition to our main architecture, we also experimented with:
+
+\begin{itemize}
+    \item \textbf{ResNet-based models}: We implemented ResNet-38 and ResNet-101 architectures for comparison, which showed different levels of overfitting (particularly ResNet-101 with validation accuracy of 0.41 vs. train accuracy of 0.7)
+    
+    \item \textbf{Modified input dimensions}: We standardized the 2D input size to 64×64.
+    
+    \item \textbf{Variable length input}: Instead of fixed-size inputs, we also experimented with variable-length audio processing, which achieved better results (62.2\% accuracy on the combined model) compared to fixed-size inputs (61.3\%).
+    
+    \item \textbf{Modified 1D feature extraction}: We experimented with a single-channel approach using mean over time for fixed size input, which achieved comparable accuracy in the combined model.
+\end{itemize}
+
+These explorations helped us understand the trade-offs between model complexity, feature representation, and performance in the SER task. 
