@@ -52,7 +52,7 @@ UPPER_FREQ_LIMIT_KHZ = 10 # As per paper for spectrogram images (10000 Hz)
 
 # 4. Model Parameters
 # CNN1D specific (defaults match CombinedModel if not overridden there)
-CNN1D_INPUT_CHANNELS = 4
+CNN1D_INPUT_CHANNELS = 27
 CNN1D_NUM_FEATURES_DIM = 162 # This must match the output of 1D feature extraction
 
 # CNN2D specific (defaults match CombinedModel if not overridden there)
