@@ -8,16 +8,29 @@ This directory contains the LaTeX source files for the Speech Emotion Recognitio
 report/
 ├── images/            # All figures and plots
 ├── sections/          # LaTeX section files
-├── tables/            # Table data/code (if separate from main sections)
+├── build/             # Output directory for compiled PDF
 ├── main.tex           # Main LaTeX document
-├── references.bib     # Bibliography file
 ├── Makefile           # Compilation instructions
 └── README.md          # This file
 ```
 
 ## Required Packages
 
-To compile this report, you need to have a LaTeX distribution installed (TeX Live, MikTeX, or MacTeX), which includes the following packages:
+### Installing LaTeX (Ubuntu/Debian)
+
+If you don't have LaTeX installed, you can install the required packages with:
+
+```bash
+# Install basic TeX Live packages
+sudo apt-get install texlive-latex-base texlive-latex-recommended texlive-latex-extra
+
+# Install additional packages needed for this report
+sudo apt-get install texlive-science texlive-pictures pgf
+```
+
+### Required LaTeX Packages
+
+To compile this report, you need a LaTeX distribution with the following packages:
 
 - graphicx
 - amsmath, amssymb, amsfonts
@@ -30,7 +43,8 @@ To compile this report, you need to have a LaTeX distribution installed (TeX Liv
 - geometry
 - listings
 - csquotes
-- biblatex (with bibtex backend)
+- algorithm, algpseudocode
+- tikz
 
 ## Compilation Instructions
 
@@ -54,13 +68,7 @@ mkdir -p build
 # First pass: Process LaTeX
 pdflatex -output-directory=build main
 
-# Process bibliography
-bibtex build/main
-
-# Second pass: Incorporate bibliography
-pdflatex -output-directory=build main
-
-# Third pass: Resolve references
+# Second pass: Resolve references
 pdflatex -output-directory=build main
 ```
 
@@ -81,9 +89,9 @@ To clean auxiliary files but keep the PDF:
 make clean-aux
 ```
 
-## Required Images
+## Placeholder Images
 
-Before compiling, ensure that the following images are placed in the `images/` directory:
+The report is configured to compile even without actual image files. If you want to add your own images, place them in the `images/` directory with the following names:
 
 - waveforms.png
 - 1d_features.png
@@ -99,5 +107,4 @@ Before compiling, ensure that the following images are placed in the `images/` d
 
 - Edit author names and title in `main.tex`
 - Modify individual sections in the `sections/` directory
-- Add references in `references.bib`
 - Add or modify figures in the `images/` directory 
