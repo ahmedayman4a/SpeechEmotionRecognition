@@ -72,7 +72,7 @@ MLP_DROPOUT_RATE = 0.5
 
 # 5. Training Parameters
 BATCH_SIZE = 64
-LEARNING_RATE = 0.01
+LEARNING_RATE = 0.1
 NUM_EPOCHS = 150 # Or use early stopping
 OPTIMIZER = 'Adam' # 'Adam', 'SGD', etc.
 WEIGHT_DECAY = 1e-4
