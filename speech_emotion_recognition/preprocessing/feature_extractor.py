@@ -55,7 +55,7 @@ class PaperCombinedFeatureExtractor:
         rms = librosa.feature.rms(y=waveform_np, frame_length=self.n_fft_1d, hop_length=self.hop_length_1d)
         
         # print shapes
-        print(f"zcr shape: {zcr.shape}, chroma_stft shape: {chroma_stft.shape}, mfccs shape: {mfccs.shape}, rms shape: {rms.shape}")
+        # print(f"zcr shape: {zcr.shape}, chroma_stft shape: {chroma_stft.shape}, mfccs shape: {mfccs.shape}, rms shape: {rms.shape}")
 
         # Use features as channels for 1D CNN
         features_1d = np.concatenate([zcr, chroma_stft, mfccs, rms], axis=0)
