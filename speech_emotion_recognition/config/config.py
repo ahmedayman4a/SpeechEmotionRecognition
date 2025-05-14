@@ -1,5 +1,6 @@
 # Speech Emotion Recognition Project Configuration
 
+from audiomentations import Compose, AddGaussianNoise, TimeStretch, PitchShift, Shift
 # 1. Data Parameters
 DATA_DIR = "data/Crema"  # Path to the CREMA-D dataset containing .wav files
 NUM_CLASSES = 6  # SAD, ANG, DIS, FEA, HAP, NEU (for CREMA-D)
@@ -39,6 +40,14 @@ N_MELS_FOR_1D_FEAT = 135  # Number of Mel bands for 1D features (before mean)
 # For example, if using deltas for MFCCs, that would increase N_MFCC * (1+delta_order)
 # The paper summary states "162 distinct values per audio file" after processing.
 # The feature_extractor_1d should produce this fixed size vector.
+
+
+AUDIO_AUGMENTATIONS = Compose([
+    AddGaussianNoise(min_amplitude=0.0005, max_amplitude=0.015, p=0.75),
+    TimeStretch(min_rate=0.8, max_rate=1.25, p=0.5, leave_length_unchanged=False),
+    PitchShift(min_semitones=-4, max_semitones=4, p=0.5),
+    Shift(min_shift=-0.3, max_shift=0.3, shift_unit="fraction", p=0.5)
+])
 
 # For Path B: 2D Spectrogram Images
 SPECTROGRAM_TYPE = 'melspectrogram' # 'melspectrogram' or 'spectrogram'

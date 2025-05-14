@@ -377,7 +377,8 @@ def main():
         emotion_labels_map=config.EMOTION_LABELS,
         batch_size=config.BATCH_SIZE, audio_preprocessor=audio_preprocessor, 
         feature_extractor=feature_extractor, target_sample_rate=config.TARGET_SAMPLE_RATE,
-        shuffle=config.SHUFFLE_TRAIN, num_workers=config.NUM_WORKERS, pin_memory=config.PIN_MEMORY
+        shuffle=config.SHUFFLE_TRAIN, num_workers=config.NUM_WORKERS, pin_memory=config.PIN_MEMORY,
+        augmentations=config.AUDIO_AUGMENTATIONS
     )
     val_loader = get_data_loader(
         file_paths_list=val_files, labels_list=val_labels,

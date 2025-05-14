@@ -2,6 +2,7 @@ import os
 import torch
 from torch.utils.data import Dataset, DataLoader
 import torchaudio
+from audiomentations import Compose
 
 try:
     from ..preprocessing.audio_preprocessor import AudioPreprocessor
@@ -19,7 +20,8 @@ class CremaDataset(Dataset):
                  file_paths_list: list, 
                  labels_list: list,
                  emotion_labels_map: dict,
-                 transform_audio_func=None):
+                 transform_audio_func=None,
+                 augmentations: Compose = None):
         """
         Args:
             file_paths_list (list): List of full paths to the .wav files for this dataset split.
@@ -31,6 +33,7 @@ class CremaDataset(Dataset):
         self.labels_list = labels_list
         self.emotion_labels_map = emotion_labels_map # Still useful for num_classes or other metadata
         self.transform_audio_func = transform_audio_func
+        self.augmentations = augmentations
         
         if len(self.file_paths_list) != len(self.labels_list):
             raise ValueError("file_paths_list and labels_list must have the same length.")
@@ -58,6 +61,11 @@ class CremaDataset(Dataset):
 
         if self.transform_audio_func:
             waveform = self.transform_audio_func(waveform)
+            
+        if self.augmentations:
+            wf_np = waveform.squeeze().numpy()
+            augmented = self.augmentations(samples=wf_np, sample_rate=sample_rate)
+            waveform = torch.from_numpy(augmented).unsqueeze(0)
 
         return waveform, sample_rate, label, file_name
 
@@ -100,12 +108,14 @@ def get_data_loader(file_paths_list: list,
                     audio_preprocessor: AudioPreprocessor, 
                     feature_extractor: PaperCombinedFeatureExtractor,
                     target_sample_rate: int,
-                    shuffle=True, num_workers=4, pin_memory=True):
+                    shuffle=True, num_workers=4, pin_memory=True,
+                    augmentations=None):
     
     dataset = CremaDataset(
         file_paths_list=file_paths_list,
         labels_list=labels_list,
-        emotion_labels_map=emotion_labels_map
+        emotion_labels_map=emotion_labels_map,
+        augmentations=augmentations
     )
     
     collate_function = create_collate_fn(
