@@ -61,7 +61,7 @@ CNN2D_IMG_HEIGHT = IMG_HEIGHT # Should match the processed image height
 CNN2D_IMG_WIDTH = IMG_WIDTH   # Should match the processed image width
 
 # CombinedModel general type
-MODEL_TYPE = "2d"  # Options: "combined", "1d", "2d"
+MODEL_TYPE = "1d"  # Options: "combined", "1d", "2d"
 
 # Shared for CNNs in CombinedModel
 CNN_DROPOUT_RATE = 0.3
@@ -72,7 +72,7 @@ MLP_DROPOUT_RATE = 0.5
 
 # 5. Training Parameters
 BATCH_SIZE = 64
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.01
 NUM_EPOCHS = 150 # Or use early stopping
 OPTIMIZER = 'Adam' # 'Adam', 'SGD', etc.
 WEIGHT_DECAY = 1e-4
