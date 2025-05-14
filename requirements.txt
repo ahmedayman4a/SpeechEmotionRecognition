@@ -11,4 +11,3 @@ torchmetrics
 matplotlib
 
 webrtcvad
-audiomentations==0.37.0
