@@ -14,7 +14,7 @@ class CNN1D(nn.Module):
         
         self.conv_block1 = nn.Sequential(
             nn.Conv1d(in_channels=input_channels, out_channels=128, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm1d(128),
+            nn.GroupNorm(1, 128),
             activation_module,
             nn.MaxPool1d(kernel_size=2, stride=2, ceil_mode=True), # L_out = ceil(162/2) = 81
             nn.Dropout(dropout_rate)
@@ -22,7 +22,7 @@ class CNN1D(nn.Module):
 
         self.conv_block2 = nn.Sequential(
             nn.Conv1d(in_channels=128, out_channels=256, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm1d(256),
+            nn.GroupNorm(1, 256),
             activation_module,
             nn.MaxPool1d(kernel_size=2, stride=2, ceil_mode=True), # L_out = ceil(81/2) = 41
             nn.Dropout(dropout_rate)
@@ -30,7 +30,7 @@ class CNN1D(nn.Module):
 
         self.conv_block3 = nn.Sequential(
             nn.Conv1d(in_channels=256, out_channels=512, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm1d(512),
+            nn.GroupNorm(1, 512),
             activation_module,
             nn.MaxPool1d(kernel_size=2, stride=2, ceil_mode=True), # L_out = ceil(41/2) = 21
             nn.Dropout(dropout_rate)
