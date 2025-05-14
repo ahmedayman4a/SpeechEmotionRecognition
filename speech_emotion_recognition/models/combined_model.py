@@ -39,33 +39,29 @@ class CombinedModel(nn.Module):
             
         self.cnn1d = CNN1D(
             input_channels=cnn1d_input_channels, 
-            num_features_input_dim=cnn1d_num_features_input_dim,
             dropout_rate=dropout_rate_cnn,
             activation_module=activation_module_cnn # Pass the instantiated module
         )
-        # Expected output of cnn1d is 2688 features
+        # Expected output of cnn1d is 512 features after GAP
 
         self.cnn2d = CNN2D(
             input_channels=cnn2d_input_channels,
-            img_height=cnn2d_img_height,
-            img_width=cnn2d_img_width,
             dropout_rate=dropout_rate_cnn,
             activation_module=activation_module_cnn # Pass the instantiated module
         )
-        # Expected output of cnn2d is 4096 features
+        # Expected output of cnn2d is 1024 features after GAP
         
         # Flattened feature sizes from the paper (and derived model architecture)
-        cnn1d_output_features = 2688 
-        cnn2d_output_features = 4096
-        concatenated_features = cnn1d_output_features + cnn2d_output_features # Should be 6784
+        cnn1d_output_features = 512
+        cnn2d_output_features = 1024 
+        concatenated_features = cnn1d_output_features + cnn2d_output_features
 
         self.fc_block = nn.Sequential(
             nn.Linear(concatenated_features, 128),
-            # Consider adding BatchNorm1d(128) here if beneficial
+            nn.LayerNorm(128),
             activation_module_mlp, # Use the instantiated MLP activation module
             nn.Dropout(dropout_rate_mlp),
             nn.Linear(128, num_classes) 
-            # Softmax is not applied here; nn.CrossEntropyLoss expects raw logits.
         )
 
     def forward(self, x_1d, x_2d):
@@ -80,11 +76,11 @@ class CombinedModel(nn.Module):
         Returns:
             torch.Tensor: Output logits for each class. Shape: (batch_size, num_classes)
         """
-        out_1d = self.cnn1d(x_1d) # Expected: (N, 2688)
-        out_2d = self.cnn2d(x_2d) # Expected: (N, 4096)
+        out_1d = self.cnn1d(x_1d) # Expected: (N, 512)
+        out_2d = self.cnn2d(x_2d) # Expected: (N, 1024)
         
         # Concatenate along the feature dimension (dim=1)
-        concatenated = torch.cat((out_1d, out_2d), dim=1) # Expected: (N, 6784)
+        concatenated = torch.cat((out_1d, out_2d), dim=1)
         
         output = self.fc_block(concatenated) # Expected: (N, num_classes)
         return output

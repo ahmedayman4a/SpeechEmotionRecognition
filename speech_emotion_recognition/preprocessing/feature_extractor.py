@@ -173,15 +173,15 @@ class PaperCombinedFeatureExtractor:
         
         # skimage.transform.resize expects image_ndim >= channel_ndim.
         # (H, W) is fine. Output is float64 by default.
-        resized_spec_np = skimage.transform.resize(
-            mel_spec_np, 
-            (self.img_height, self.img_width), 
-            anti_aliasing=True, 
-            mode='reflect' # or other mode like 'edge', 'constant'
-        )
+        # resized_spec_np = skimage.transform.resize(
+        #     mel_spec_np, 
+        #     (self.img_height, self.img_width), 
+        #     anti_aliasing=True, 
+        #     mode='reflect' # or other mode like 'edge', 'constant'
+        # )
         
         # Add channel dimension: (1, H, W) for PyTorch CNNs
-        resized_spec_tensor = torch.tensor(resized_spec_np, dtype=torch.float32).unsqueeze(0)
+        resized_spec_tensor = torch.tensor(mel_spec_np, dtype=torch.float32).unsqueeze(0)
         return resized_spec_tensor # Shape [1, img_height, img_width]
 
     def __call__(self, waveform_batch_preprocessed):

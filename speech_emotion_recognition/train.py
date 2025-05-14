@@ -399,8 +399,6 @@ def main():
     model = CombinedModel(
         num_classes=config.NUM_CLASSES,
         cnn1d_num_features_input_dim=config.CNN1D_NUM_FEATURES_DIM,
-        cnn2d_img_height=config.CNN2D_IMG_HEIGHT,
-        cnn2d_img_width=config.CNN2D_IMG_WIDTH,
         dropout_rate_cnn=config.CNN_DROPOUT_RATE,
         dropout_rate_mlp=config.MLP_DROPOUT_RATE
         # Can pass activation_module_cnn/mlp=nn.SiLU() here if desired
