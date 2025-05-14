@@ -44,23 +44,29 @@ class PaperCombinedFeatureExtractor:
         """ Extracts the 162-feature vector using Librosa. Waveform is a mono numpy array. """
         # 1. Zero-Crossing Rate
         zcr = librosa.feature.zero_crossing_rate(waveform_np, frame_length=self.n_fft_1d, hop_length=self.hop_length_1d)
+        zcr_mean = np.mean(zcr, axis=1)
         
         # 2. Chroma STFT
         chroma_stft = librosa.feature.chroma_stft(y=waveform_np, sr=self.sr, n_fft=self.n_fft_1d, hop_length=self.hop_length_1d)
-    
+        chroma_mean = np.mean(chroma_stft, axis=1)
+        
         # 3. MFCCs
         mfccs = librosa.feature.mfcc(y=waveform_np, sr=self.sr, n_mfcc=self.n_mfcc_1d, n_fft=self.n_fft_1d, hop_length=self.hop_length_1d)
-
+        mfccs_mean = np.mean(mfccs, axis=1)
+        
         # 4. RMS Energy
         rms = librosa.feature.rms(y=waveform_np, frame_length=self.n_fft_1d, hop_length=self.hop_length_1d)
+        rms_mean = np.mean(rms, axis=1)
         
-        # print shapes
-        # print(f"zcr shape: {zcr.shape}, chroma_stft shape: {chroma_stft.shape}, mfccs shape: {mfccs.shape}, rms shape: {rms.shape}")
-
-        # Use features as channels for 1D CNN
-        features_1d = np.concatenate([zcr, chroma_stft, mfccs, rms], axis=0)
-
-        return torch.tensor(features_1d, dtype=torch.float32)
+        # 5. Mel-Spectrogram (values, then mean)
+        mel_spec_vals = librosa.feature.melspectrogram(y=waveform_np, sr=self.sr, n_fft=self.n_fft_1d, 
+                                                       hop_length=self.hop_length_1d, n_mels=self.n_mels_for_1d_feat)
+        mel_spec_mean = np.mean(librosa.power_to_db(mel_spec_vals, ref=np.max), axis=1)
+        
+        # Concatenate all mean features
+        # Expected sizes: zcr (1), chroma (12), mfcc (self.n_mfcc_1d), rms (1), mel_spec (self.n_mels_for_1d_feat)
+        features_1d = np.concatenate((zcr_mean, chroma_mean, mfccs_mean, rms_mean, mel_spec_mean), axis=0)
+        return torch.tensor(features_1d, dtype=torch.float32).unsqueeze(0) # Shape [1, 162]
 
     def _extract_2d_image_features(self, waveform_tensor):
         """ Extracts 2D spectrogram image. Waveform is a_i mono tensor [1, T] or [T]. """
