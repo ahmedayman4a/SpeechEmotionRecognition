@@ -1,4 +1,5 @@
 # Speech Emotion Recognition Project Configuration
+from torch import nn
 
 # 1. Data Parameters
 DATA_DIR = "data/Crema"  # Path to the CREMA-D dataset containing .wav files
@@ -68,7 +69,9 @@ CNN_DROPOUT_RATE = 0.3
 
 # MLP Head in CombinedModel
 MLP_DROPOUT_RATE = 0.5
-# Activation functions are set in model instantiation, can be nn.ReLU(inplace=True) or nn.SiLU()
+
+ACTIVATION_MODULE_CNN = nn.SiLU()
+ACTIVATION_MODULE_MLP = nn.SiLU()
 
 # 5. Training Parameters
 BATCH_SIZE = 64

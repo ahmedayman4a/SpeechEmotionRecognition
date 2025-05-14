@@ -402,8 +402,9 @@ def main():
         cnn1d_input_channels=config.CNN1D_INPUT_CHANNELS,
         cnn2d_input_channels=config.CNN2D_INPUT_CHANNELS,
         dropout_rate_cnn=config.CNN_DROPOUT_RATE,
-        dropout_rate_mlp=config.MLP_DROPOUT_RATE
-        # Can pass activation_module_cnn/mlp=nn.SiLU() here if desired
+        dropout_rate_mlp=config.MLP_DROPOUT_RATE,
+        activation_module_cnn=config.ACTIVATION_MODULE_CNN,
+        activation_module_mlp=config.ACTIVATION_MODULE_MLP
     ).to(device)
     print("Model initialized.")
     wandb.watch(model, log='all', log_freq=100) # Log model gradients/parameters
