@@ -13,13 +13,14 @@ A deep learning-based speech emotion recognition system using 1D and 2D CNN arch
 - **Advanced Feature Extraction**: Extract both 1D spectral features and 2D mel-spectrogram features from audio
 - **Activation Function Analysis**: Comparative analysis of ReLU, SiLU (Swish), and ELU activations
 - **Hyperparameter Investigation**: Exploration of different learning rates and model configurations
-- **Variable-Length Processing**: Support for both fixed-size and variable-length audio inputs
+- **Variable-Length Processing**: Support for both fixed-size and variable-length audio inputs (for combined models)
 
 ## Performance Highlights
 
-- **Best Model**: 2D CNN with SiLU activation and learning rate 0.001 achieved **64.1%** accuracy
-- **Variable Length Processing**: Improved combined model performance from 61.3% to 62.2% accuracy
-- **Emotion Recognition Insights**: Identified patterns in emotion recognition challenges (e.g., confusion between Fear/Sadness and Disgust/Anger)
+- **Best Model**: 2D CNN with SiLU activation and learning rate 0.001 achieved **64.1%** accuracy and **0.634** F1-score.
+- **1D CNN Performance**: 1D CNN with SiLU activation and learning rate 0.001 achieved **61.2%** accuracy and **0.606** F1-score.
+- **Variable Length Processing**: Improved combined model performance from 61.3% to 62.2% accuracy (based on prior experiments for combined models).
+- **Emotion Recognition Insights**: Identified patterns in emotion recognition challenges (e.g., confusion between Fear/Sadness and Disgust being broadly confused).
 
 ## Repository Structure
 
@@ -61,11 +62,12 @@ pip install -r requirements.txt
 ```bash
 python speech_emotion_recognition/train.py --data_dir data/Crema --wandb_project SER
 ```
+*Adjust configuration files in `speech_emotion_recognition/config/` for specific model types, learning rates, and activation functions.*
 
 ### Evaluating a Model
 
 ```bash
-python speech_emotion_recognition/train.py --data_dir data/Crema --resume_checkpoint trained_models/best_combined_ser_model.pth
+python speech_emotion_recognition/train.py --data_dir data/Crema --resume_checkpoint path/to/your/best_model.pth --evaluate_only
 ```
 
 ## CREMA-D Dataset
@@ -79,13 +81,13 @@ This project uses the [CREMA-D dataset](https://github.com/CheyneyComputerScienc
 ## Model Architectures
 
 ### 1D CNN Architecture
-- Three convolutional blocks with filter sizes 128, 256, and 512
-- Each block includes Conv1D, GroupNorm, Activation, MaxPool1D, and Dropout
+- Three convolutional blocks with increasing filter sizes (e.g., 128, 256, 512)
+- Each block includes Conv1D, GroupNorm, Activation (ReLU/SiLU/ELU), MaxPool1D, and Dropout
 - Global Average Pooling and fully connected classifier
 
 ### 2D CNN Architecture (Best Performer)
-- Four convolutional blocks with filter sizes 32, 64, 512, and 1024
-- Each block includes Conv2D, GroupNorm, Activation, MaxPool2D, and Dropout
+- Four convolutional blocks with increasing filter sizes (e.g., 32, 64, 512, 1024)
+- Each block includes Conv2D, GroupNorm, Activation (ReLU/SiLU/ELU), MaxPool2D, and Dropout
 - Global Average Pooling and fully connected classifier
 
 ### Combined Architecture
@@ -95,20 +97,20 @@ This project uses the [CREMA-D dataset](https://github.com/CheyneyComputerScienc
 
 ## Results
 
-| Model                  | Activation | Learning Rate | Accuracy  | F1-Score  | Precision |
-| ---------------------- | ---------- | ------------- | --------- | --------- | --------- |
-| 2D CNN                 | SiLU       | 0.001         | **64.1%** | **0.639** | **0.643** |
-| Combined (var. length) | SiLU       | 0.001         | 62.2%     | 0.619     | 0.625     |
-| Combined (fixed size)  | SiLU       | 0.001         | 61.3%     | 0.608     | 0.614     |
-| 1D CNN                 | ELU        | 0.01          | 55.6%     | 0.553     | 0.557     |
+| Model                   | Activation | Learning Rate | Accuracy  | F1-Score  | Precision* |
+| ----------------------- | ---------- | ------------- | --------- | --------- | ---------- |
+| 2D CNN                  | SiLU       | 0.001         | **64.1%** | **0.634** | **0.643**  |
+| Combined (var. length)† | SiLU       | 0.001         | 62.2%     | 0.619     | 0.625      |
+| 1D CNN                  | SiLU       | 0.001         | 61.2%     | 0.606     | 0.610      |
+| Combined (fixed size)†  | SiLU       | 0.001         | 61.3%     | 0.608     | 0.614      |
 
 ## Key Findings
 
-1. **2D CNN models excel**: The 2D CNN with SiLU activation achieved the highest performance (64.1%)
-2. **Activation functions matter**: SiLU performed best for 2D CNN, while ELU was optimal for 1D CNN
-3. **Variable-length processing improves results**: Preserving temporal dynamics improved performance
-4. **Learning rate tuning is critical**: Lower rates (0.001) worked best for 2D CNN and combined models
-5. **Some emotions are inherently harder to distinguish**: Fear and Sadness had the highest confusion rates
+1.  **2D CNN models excel**: The 2D CNN with SiLU activation and a learning rate of 0.001 achieved the highest performance (64.1% accuracy, 0.634 F1-score).
+2.  **Activation functions matter**: SiLU performed best for the top configurations of both 2D CNN and 1D CNN models (when paired with lr=0.001).
+3.  **Variable-length processing improves results**: For combined models, preserving temporal dynamics improved performance (based on prior experiments).
+4.  **Learning rate tuning is critical**: Lower rates (0.001) generally worked best for the optimal configurations of both 1D and 2D CNNs.
+5.  **Some emotions are inherently harder to distinguish**: Disgust was particularly challenging, with Fear and Sadness also showing high confusion rates.
 
 ## Future Directions
 
@@ -116,6 +118,7 @@ This project uses the [CREMA-D dataset](https://github.com/CheyneyComputerScienc
 - Transformer-based architectures for improved temporal modeling
 - Multi-modal approaches combining audio with text or visual data
 - Data augmentation techniques specific to emotional speech
+- Designing or optimizing custom activation functions specifically for SER tasks.
 
 ## Team
 
@@ -125,10 +128,10 @@ This project uses the [CREMA-D dataset](https://github.com/CheyneyComputerScienc
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the `LICENSE` file for details.
 
 ## Acknowledgments
 
 - Prof. Dr. Marwan Torki and Eng. Ismail El-Yamany for their guidance
 - Alexandria University, Faculty of Engineering, Computer and Systems Engineering Department
-- The creators of the CREMA-D dataset 
+- The creators of the CREMA-D dataset
