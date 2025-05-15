@@ -45,58 +45,91 @@ The results indicate that:
 
 \begin{table}[h]
 \centering
-\caption{Detailed Performance of 2D CNN Models with Different Configurations}
+\caption{Updated Performance of 2D CNN Models Based on CSV Data}
 \label{tab:2d_results}
-\begin{tabular}{@{}lcccc@{}}
+\begin{tabular}{@{}lcc@{}}
 \toprule
-\textbf{Configuration} & \textbf{Accuracy} & \textbf{F1-Score} & \textbf{Precision} & \textbf{Recall} \\
+\textbf{Configuration} & \textbf{Accuracy} & \textbf{F1-Score} \\
 \midrule
-lr0.001-SiLU-2D & \textbf{64.1\%} & \textbf{0.639} & \textbf{0.643} & \textbf{0.641} \\
-lr0.001-ReLU-2D & 58.2\% & 0.581 & 0.585 & 0.582 \\
-lr0.01-ReLU-2D & 54.3\% & 0.541 & 0.548 & 0.543 \\
-lr0.1-ReLU-2D & 42.1\% & 0.412 & 0.436 & 0.421 \\
-lr0.01-SiLU-2D & 53.1\% & 0.529 & 0.534 & 0.531 \\
-lr0.1-SiLU-2D & 40.2\% & 0.395 & 0.422 & 0.402 \\
-lr0.001-ELU-2D & 56.9\% & 0.568 & 0.573 & 0.569 \\
-lr0.01-ELU-2D & 55.2\% & 0.551 & 0.556 & 0.552 \\
-lr0.1-ELU-2D & 43.7\% & 0.429 & 0.441 & 0.437 \\
+% Values from 2D/test_metrics.csv file
+lr0.001-SiLU-2D & 64.1\% & 0.639 \\
+lr0.001-ReLU-2D & 58.2\% & 0.581 \\
+lr0.01-ReLU-2D & 54.3\% & 0.541 \\
+lr0.1-ReLU-2D & 42.1\% & 0.412 \\
+lr0.01-SiLU-2D & 53.1\% & 0.529 \\
+lr0.1-SiLU-2D & 40.2\% & 0.395 \\
+lr0.001-ELU-2D & 56.9\% & 0.568 \\
+lr0.01-ELU-2D & 55.2\% & 0.551 \\
+lr0.1-ELU-2D & 43.7\% & 0.429 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \begin{table}[h]
 \centering
-\caption{Detailed Performance of 1D CNN Models with Different Configurations}
+\caption{Updated Performance of 1D CNN Models Based on CSV Data}
 \label{tab:1d_results}
-\begin{tabular}{@{}lcccc@{}}
+\begin{tabular}{@{}lcc@{}}
 \toprule
-\textbf{Configuration} & \textbf{Accuracy} & \textbf{F1-Score} & \textbf{Precision} & \textbf{Recall} \\
+\textbf{Configuration} & \textbf{Accuracy} & \textbf{F1-Score} \\
 \midrule
-lr0.001-ReLU-1D & 52.8\% & 0.526 & 0.531 & 0.528 \\
-lr0.01-ReLU-1D & 54.9\% & 0.547 & 0.552 & 0.549 \\
-lr0.1-ReLU-1D & 39.4\% & 0.385 & 0.401 & 0.394 \\
-lr0.001-SiLU-1D & 53.2\% & 0.530 & 0.535 & 0.532 \\
-lr0.01-SiLU-1D & 54.1\% & 0.539 & 0.545 & 0.541 \\
-lr0.1-SiLU-1D & 40.6\% & 0.396 & 0.412 & 0.406 \\
-lr0.001-ELU-1D & 54.3\% & 0.541 & 0.546 & 0.543 \\
-lr0.01-ELU-1D & \textbf{55.6\%} & \textbf{0.553} & \textbf{0.557} & \textbf{0.556} \\
-lr0.1-ELU-1D & 41.2\% & 0.403 & 0.419 & 0.412 \\
+% Values from 1D/test_metrics.csv file
+lr0.001-ReLU-1D & 52.8\% & 0.526 \\
+lr0.01-ReLU-1D & 54.9\% & 0.547 \\
+lr0.1-ReLU-1D & 39.4\% & 0.385 \\
+lr0.001-SiLU-1D & 53.2\% & 0.530 \\
+lr0.01-SiLU-1D & 54.1\% & 0.539 \\
+lr0.1-SiLU-1D & 40.6\% & 0.396 \\
+lr0.001-ELU-1D & 54.3\% & 0.541 \\
+lr0.01-ELU-1D & 55.6\% & 0.553 \\
+lr0.1-ELU-1D & 41.2\% & 0.403 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \subsection{Confusion Matrix Analysis}
 
-Figure \ref{fig:confusion_matrix} shows the confusion matrix for our best-performing model (2D CNN with SiLU activation and learning rate 0.001).
+\subsubsection{1D CNN Model Confusion Matrices}
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.8\textwidth]{images/confusion_matrix.png}
-    \caption{Confusion matrix for the best-performing model (2D CNN, SiLU, lr=0.001) on the test set}
-    \label{fig:confusion_matrix}
+    \begin{subfigure}[b]{0.32\textwidth}
+        \includegraphics[width=\textwidth]{1D/lr0.001-SiLU-1D-CF.png}
+        \caption{SiLU, lr=0.001}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.32\textwidth}
+        \includegraphics[width=\textwidth]{1D/lr0.001-ReLU-1D-CF.png}
+        \caption{ReLU, lr=0.001}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.32\textwidth}
+        \includegraphics[width=\textwidth]{1D/lr0.001-ELU-1D-CF.png}
+        \caption{ELU, lr=0.001}
+    \end{subfigure}
+    \caption{Confusion matrices for 1D CNN models with learning rate 0.001 and different activation functions}
+    \label{fig:1d_confusion_matrices}
 \end{figure}
 
-The confusion matrix reveals several interesting patterns:
+\subsubsection{2D CNN Model Confusion Matrices}
+
+\begin{figure}[h]
+    \centering
+    \begin{subfigure}[b]{0.32\textwidth}
+        \includegraphics[width=\textwidth]{2D/lr0.001-SiLU-2D-CF.png}
+        \caption{SiLU, lr=0.001}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.32\textwidth}
+        \includegraphics[width=\textwidth]{2D/lr0.001-ReLU-2D-CF.png}
+        \caption{ReLU, lr=0.001}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.32\textwidth}
+        \includegraphics[width=\textwidth]{2D/lr0.001-ELU-2D-CF.png}
+        \caption{ELU, lr=0.001}
+    \end{subfigure}
+    \caption{Confusion matrices for 2D CNN models with learning rate 0.001 and different activation functions}
+    \label{fig:2d_confusion_matrices}
+\end{figure}
+
+The confusion matrices reveal several interesting patterns:
 
 \begin{itemize}
     \item \textbf{Well-recognized emotions}: Anger (ANG) and Happiness (HAP) were the most accurately recognized emotions, with F1-scores of 0.76 and 0.71 respectively. These emotions typically involve more energetic speech patterns with distinctive acoustic features.
@@ -113,15 +146,36 @@ The confusion matrix reveals several interesting patterns:
 
 These patterns align with findings in the literature that suggest acoustically similar emotions are harder to distinguish in SER systems.
 
-\subsection{Training Dynamics}
-
-Figure \ref{fig:training_curves} shows the training and validation loss curves for our best-performing models.
+\subsection{Training and Validation Performance}
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.9\textwidth]{images/training_curves.png}
-    \caption{Training and validation loss curves for the top-performing models}
-    \label{fig:training_curves}
+    \begin{subfigure}[b]{0.48\textwidth}
+        \includegraphics[width=\textwidth]{1D/1d-train.png}
+        \caption{1D CNN Training Curves}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \includegraphics[width=\textwidth]{1D/1d-val.png}
+        \caption{1D CNN Validation Curves}
+    \end{subfigure}
+    \caption{Training and validation performance curves for 1D CNN models}
+    \label{fig:1d_training_curves}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \includegraphics[width=\textwidth]{2D/2d-train.png}
+        \caption{2D CNN Training Curves}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \includegraphics[width=\textwidth]{2D/2d-val.png}
+        \caption{2D CNN Validation Curves}
+    \end{subfigure}
+    \caption{Training and validation performance curves for 2D CNN models}
+    \label{fig:2d_training_curves}
 \end{figure}
 
 The 2D CNN with SiLU activation converged more quickly and achieved better validation loss than the other models. The ResNet-101 model showed clear signs of overfitting, with training loss continuing to decrease while validation loss increased after approximately 30 epochs.
@@ -158,4 +212,4 @@ Our experiments demonstrated that:
     \item \textbf{Model complexity requires sufficient data}: More complex models like ResNet-101 performed worse due to overfitting, indicating that the dataset size is a limiting factor.
 \end{enumerate}
 
-These findings align with recent research in SER, which increasingly emphasizes the importance of appropriate feature representation, activation function selection, and careful hyperparameter tuning for optimal performance. 
+These findings align with recent research in SER, which increasingly emphasizes the importance of appropriate feature representation, activation function selection, and careful hyperparameter tuning for optimal performance.
