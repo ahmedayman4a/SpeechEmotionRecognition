@@ -12,13 +12,11 @@ except ImportError:
 class CombinedModel(nn.Module):
     def __init__(self, 
                  num_classes=6, # Default to 6 for CREMA-D emotions
+                 model_type="combined", # New parameter: "1d", "2d", or "combined"
                  # CNN1D parameters
                  cnn1d_input_channels=1, 
-                 cnn1d_num_features_input_dim=162,
                  # CNN2D parameters
                  cnn2d_input_channels=1, 
-                 cnn2d_img_height=64, 
-                 cnn2d_img_width=64,
                  # Shared/General parameters
                  dropout_rate_cnn=0.3, # Dropout for CNN blocks
                  dropout_rate_mlp=0.5, # Dropout for MLP head
@@ -27,6 +25,10 @@ class CombinedModel(nn.Module):
                  activation_module_mlp: nn.Module = None
                  ):
         super(CombinedModel, self).__init__()
+
+        self.model_type = model_type.lower()
+        if self.model_type not in ["1d", "2d", "combined"]:
+            raise ValueError(f"Unsupported model_type: {model_type}. Choose from '1d', '2d', or 'combined'.")
 
         # Set default activation modules if not provided
         # Paper summary indicates ReLU for these parts.
@@ -37,35 +39,42 @@ class CombinedModel(nn.Module):
             # Create a new instance for MLP
             activation_module_mlp = nn.ReLU(inplace=True)
             
-        self.cnn1d = CNN1D(
-            input_channels=cnn1d_input_channels, 
-            num_features_input_dim=cnn1d_num_features_input_dim,
-            dropout_rate=dropout_rate_cnn,
-            activation_module=activation_module_cnn # Pass the instantiated module
-        )
-        # Expected output of cnn1d is 2688 features
+        # Expected output feature sizes from the individual CNNs
+        cnn1d_output_features = 512
+        cnn2d_output_features = 1024 
 
-        self.cnn2d = CNN2D(
-            input_channels=cnn2d_input_channels,
-            img_height=cnn2d_img_height,
-            img_width=cnn2d_img_width,
-            dropout_rate=dropout_rate_cnn,
-            activation_module=activation_module_cnn # Pass the instantiated module
-        )
-        # Expected output of cnn2d is 4096 features
+        mlp_input_features = 0
+
+        if self.model_type == "1d" or self.model_type == "combined":
+            self.cnn1d = CNN1D(
+                input_channels=cnn1d_input_channels, 
+                dropout_rate=dropout_rate_cnn,
+                activation_module=activation_module_cnn # Pass the instantiated module
+            )
+            mlp_input_features += cnn1d_output_features
+        else:
+            self.cnn1d = None
+
+        if self.model_type == "2d" or self.model_type == "combined":
+            self.cnn2d = CNN2D(
+                input_channels=cnn2d_input_channels,
+                dropout_rate=dropout_rate_cnn,
+                activation_module=activation_module_cnn # Pass the instantiated module
+            )
+            mlp_input_features += cnn2d_output_features
+        else:
+            self.cnn2d = None
         
-        # Flattened feature sizes from the paper (and derived model architecture)
-        cnn1d_output_features = 2688 
-        cnn2d_output_features = 4096
-        concatenated_features = cnn1d_output_features + cnn2d_output_features # Should be 6784
+        if mlp_input_features == 0:
+            # This case should not be reached due to the model_type check, but as a safeguard
+            raise ValueError("No CNN path selected, MLP input features would be zero.")
 
         self.fc_block = nn.Sequential(
-            nn.Linear(concatenated_features, 128),
-            # Consider adding BatchNorm1d(128) here if beneficial
+            nn.Linear(mlp_input_features, 128),
+            nn.LayerNorm(128),
             activation_module_mlp, # Use the instantiated MLP activation module
             nn.Dropout(dropout_rate_mlp),
             nn.Linear(128, num_classes) 
-            # Softmax is not applied here; nn.CrossEntropyLoss expects raw logits.
         )
 
     def forward(self, x_1d, x_2d):
@@ -80,13 +89,40 @@ class CombinedModel(nn.Module):
         Returns:
             torch.Tensor: Output logits for each class. Shape: (batch_size, num_classes)
         """
-        out_1d = self.cnn1d(x_1d) # Expected: (N, 2688)
-        out_2d = self.cnn2d(x_2d) # Expected: (N, 4096)
         
-        # Concatenate along the feature dimension (dim=1)
-        concatenated = torch.cat((out_1d, out_2d), dim=1) # Expected: (N, 6784)
+        features_to_concatenate = []
+
+        if self.model_type == "1d":
+            if self.cnn1d is None:
+                raise RuntimeError("Model type is '1d' but cnn1d is not initialized.")
+            out_1d = self.cnn1d(x_1d) # Expected: (N, 512)
+            features_to_concatenate.append(out_1d)
+        elif self.model_type == "2d":
+            if self.cnn2d is None:
+                raise RuntimeError("Model type is '2d' but cnn2d is not initialized.")
+            out_2d = self.cnn2d(x_2d) # Expected: (N, 1024)
+            features_to_concatenate.append(out_2d)
+        elif self.model_type == "combined":
+            if self.cnn1d is None or self.cnn2d is None:
+                raise RuntimeError("Model type is 'combined' but one or both CNNs are not initialized.")
+            out_1d = self.cnn1d(x_1d) # Expected: (N, 512)
+            out_2d = self.cnn2d(x_2d) # Expected: (N, 1024)
+            features_to_concatenate.append(out_1d)
+            features_to_concatenate.append(out_2d)
+        else:
+            # This case should be caught by the __init__ check
+            raise ValueError(f"Invalid model_type '{self.model_type}' in forward pass.")
+
+        if not features_to_concatenate:
+             raise RuntimeError("No features were processed by CNNs.")
         
-        output = self.fc_block(concatenated) # Expected: (N, num_classes)
+        # Concatenate along the feature dimension (dim=1) if more than one feature set
+        if len(features_to_concatenate) > 1:
+            processed_features = torch.cat(features_to_concatenate, dim=1)
+        else:
+            processed_features = features_to_concatenate[0]
+            
+        output = self.fc_block(processed_features) # Expected: (N, num_classes)
         return output
 
 if __name__ == '__main__':
@@ -95,41 +131,120 @@ if __name__ == '__main__':
 
     # --- Test with ReLU (default, as per paper summary) ---
     print("--- Testing CombinedModel with ReLU ---")
+    
+    # Test Combined (default)
+    print("Testing model_type='combined'")
     combined_model_relu = CombinedModel(
         num_classes=crema_num_classes,
+        model_type="combined" 
         # Default activations (ReLU) will be used
     )
-    dummy_x1d_relu = torch.randn(batch_size, 1, 162)
-    dummy_x2d_relu = torch.randn(batch_size, 1, 64, 64)
-    output_relu = combined_model_relu(dummy_x1d_relu, dummy_x2d_relu)
-    print(f"CombinedModel (ReLU) input 1D: {dummy_x1d_relu.shape}")
-    print(f"CombinedModel (ReLU) input 2D: {dummy_x2d_relu.shape}")
-    print(f"CombinedModel (ReLU) output shape: {output_relu.shape}")
+    dummy_x1d = torch.randn(batch_size, 1, 162)
+    dummy_x2d = torch.randn(batch_size, 1, 64, 64)
+    output_relu = combined_model_relu(dummy_x1d, dummy_x2d)
+    print(f"CombinedModel (ReLU, combined) input 1D: {dummy_x1d.shape}")
+    print(f"CombinedModel (ReLU, combined) input 2D: {dummy_x2d.shape}")
+    print(f"CombinedModel (ReLU, combined) output shape: {output_relu.shape}")
     assert output_relu.shape == (batch_size, crema_num_classes), \
         f"Expected output shape ({batch_size}, {crema_num_classes}), got {output_relu.shape}"
-    print("CombinedModel (ReLU) test passed.")
+    print("CombinedModel (ReLU, combined) test passed.")
+
+    # Test 1D only
+    print("\nTesting model_type='1d'")
+    model_1d_relu = CombinedModel(
+        num_classes=crema_num_classes,
+        model_type="1d"
+    )
+    output_1d_relu = model_1d_relu(dummy_x1d, dummy_x2d) # Still pass both, model should ignore x2d
+    print(f"CombinedModel (ReLU, 1d) input 1D: {dummy_x1d.shape}")
+    print(f"CombinedModel (ReLU, 1d) input 2D: {dummy_x2d.shape} (should be ignored)")
+    print(f"CombinedModel (ReLU, 1d) output shape: {output_1d_relu.shape}")
+    assert output_1d_relu.shape == (batch_size, crema_num_classes), \
+        f"Expected output shape ({batch_size}, {crema_num_classes}), got {output_1d_relu.shape}"
+    assert model_1d_relu.cnn1d is not None
+    assert model_1d_relu.cnn2d is None
+    print("CombinedModel (ReLU, 1d) test passed.")
+
+    # Test 2D only
+    print("\nTesting model_type='2d'")
+    model_2d_relu = CombinedModel(
+        num_classes=crema_num_classes,
+        model_type="2d"
+    )
+    output_2d_relu = model_2d_relu(dummy_x1d, dummy_x2d) # Still pass both, model should ignore x1d
+    print(f"CombinedModel (ReLU, 2d) input 1D: {dummy_x1d.shape} (should be ignored)")
+    print(f"CombinedModel (ReLU, 2d) input 2D: {dummy_x2d.shape}")
+    print(f"CombinedModel (ReLU, 2d) output shape: {output_2d_relu.shape}")
+    assert output_2d_relu.shape == (batch_size, crema_num_classes), \
+        f"Expected output shape ({batch_size}, {crema_num_classes}), got {output_2d_relu.shape}"
+    assert model_2d_relu.cnn1d is None
+    assert model_2d_relu.cnn2d is not None
+    print("CombinedModel (ReLU, 2d) test passed.")
+
 
     # --- Test with SiLU (as per user's initial preference) ---
     print("\n--- Testing CombinedModel with SiLU ---")
-    activation_cnn_silu = nn.SiLU() # Create SiLU instance
-    activation_mlp_silu = nn.SiLU() # Create SiLU instance
+    activation_cnn_silu = nn.SiLU() 
+    activation_mlp_silu = nn.SiLU() 
+
+    # Test Combined with SiLU
+    print("Testing model_type='combined' with SiLU")
     combined_model_silu = CombinedModel(
         num_classes=crema_num_classes,
+        model_type="combined",
         activation_module_cnn=activation_cnn_silu,
         activation_module_mlp=activation_mlp_silu
     )
-    dummy_x1d_silu = torch.randn(batch_size, 1, 162)
-    dummy_x2d_silu = torch.randn(batch_size, 1, 64, 64)
-    output_silu = combined_model_silu(dummy_x1d_silu, dummy_x2d_silu)
-    print(f"CombinedModel (SiLU) input 1D: {dummy_x1d_silu.shape}")
-    print(f"CombinedModel (SiLU) input 2D: {dummy_x2d_silu.shape}")
-    print(f"CombinedModel (SiLU) output shape: {output_silu.shape}")
-    assert output_silu.shape == (batch_size, crema_num_classes), \
-        f"Expected output shape ({batch_size}, {crema_num_classes}), got {output_silu.shape}"
-    print("CombinedModel (SiLU) test passed.")
+    output_silu_combined = combined_model_silu(dummy_x1d, dummy_x2d)
+    print(f"CombinedModel (SiLU, combined) output shape: {output_silu_combined.shape}")
+    assert output_silu_combined.shape == (batch_size, crema_num_classes), \
+        f"Expected output shape ({batch_size}, {crema_num_classes}), got {output_silu_combined.shape}"
+    print("CombinedModel (SiLU, combined) test passed.")
 
-    # You can also print the model structure or number of parameters
-    # print("\nCombinedModel (SiLU) structure:")
-    # print(combined_model_silu)
-    # total_params = sum(p.numel() for p in combined_model_silu.parameters() if p.requires_grad)
-    # print(f"Total trainable parameters (SiLU model): {total_params:,}") 
+    # Test 1D only with SiLU
+    print("\nTesting model_type='1d' with SiLU")
+    model_1d_silu = CombinedModel(
+        num_classes=crema_num_classes,
+        model_type="1d",
+        activation_module_cnn=nn.SiLU(), # New instance for this model
+        activation_module_mlp=nn.SiLU()  # New instance for this model
+    )
+    output_1d_silu = model_1d_silu(dummy_x1d, dummy_x2d)
+    print(f"CombinedModel (SiLU, 1d) output shape: {output_1d_silu.shape}")
+    assert output_1d_silu.shape == (batch_size, crema_num_classes), \
+        f"Expected output shape ({batch_size}, {crema_num_classes}), got {output_1d_silu.shape}"
+    assert model_1d_silu.cnn1d is not None
+    assert model_1d_silu.cnn2d is None
+    print("CombinedModel (SiLU, 1d) test passed.")
+
+    # Test 2D only with SiLU
+    print("\nTesting model_type='2d' with SiLU")
+    model_2d_silu = CombinedModel(
+        num_classes=crema_num_classes,
+        model_type="2d",
+        activation_module_cnn=nn.SiLU(), # New instance for this model
+        activation_module_mlp=nn.SiLU()  # New instance for this model
+    )
+    output_2d_silu = model_2d_silu(dummy_x1d, dummy_x2d)
+    print(f"CombinedModel (SiLU, 2d) output shape: {output_2d_silu.shape}")
+    assert output_2d_silu.shape == (batch_size, crema_num_classes), \
+        f"Expected output shape ({batch_size}, {crema_num_classes}), got {output_2d_silu.shape}"
+    assert model_2d_silu.cnn1d is None
+    assert model_2d_silu.cnn2d is not None
+    print("CombinedModel (SiLU, 2d) test passed.")
+
+    # Print Model structure
+    print("\nCombinedModel (SiLU, combined) structure:")
+    print(combined_model_silu)
+    total_params = sum(p.numel() for p in combined_model_silu.parameters() if p.requires_grad)
+    print(f"Total trainable parameters (SiLU, combined model): {total_params:,}")
+
+    print("\nCombinedModel (ReLU, 1d) structure:")
+    print(model_1d_relu)
+    total_params_1d = sum(p.numel() for p in model_1d_relu.parameters() if p.requires_grad)
+    print(f"Total trainable parameters (ReLU, 1d model): {total_params_1d:,}")
+
+    print("\nCombinedModel (ReLU, 2d) structure:")
+    print(model_2d_relu)
+    total_params_2d = sum(p.numel() for p in model_2d_relu.parameters() if p.requires_grad)
+    print(f"Total trainable parameters (ReLU, 2d model): {total_params_2d:,}") 

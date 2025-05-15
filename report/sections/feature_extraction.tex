@@ -1,0 +1,41 @@
+\section{Feature Extraction}
+
+We implemented two distinct approaches for feature extraction from the preprocessed audio signals: 1D spectral features and 2D mel spectrogram images. This dual-path approach allowed us to evaluate the effectiveness of different feature representations for emotion recognition.
+
+\subsection{1D Spectral Features}
+
+For the 1D feature space, we extracted a combination of time and frequency domain features that capture various acoustic properties relevant to emotion expression. Our feature vector included:
+
+\begin{itemize}
+    \item \textbf{Zero Crossing Rate (ZCR)}: The rate at which the signal changes from positive to negative or vice versa, capturing information about the frequency content and noisiness of the signal.
+    
+    \item \textbf{Chroma STFT}: A 12-element feature vector representing the spectral energy distribution across the 12 different pitch classes (C, C\#, D, etc.), which helps capture tonal content.
+    
+    \item \textbf{Mel-Frequency Cepstral Coefficients (MFCCs)}: 13 coefficients representing the short-term power spectrum of the sound on a mel scale, which approximates the human auditory system's response.
+    
+    \item \textbf{Root Mean Square (RMS) Energy}: A measure of the loudness or energy in the signal, capturing amplitude variations that often correlate with emotional intensity.
+\end{itemize}
+
+These features were extracted using frame-by-frame processing with a frame length of 512 samples and a hop length of 160 samples. The resulting feature matrix had 27 rows (feature channels) and 301 time frames, which served as input to our 1D CNN models.
+
+\subsection{2D Mel Spectrogram Features}
+
+For the 2D feature space, we converted the audio signals into mel spectrograms, which are visual representations of the spectrum of frequencies over time. The mel scale is a perceptual scale that better represents how humans perceive pitch.
+
+\begin{itemize}
+    \item FFT window size: 1024 samples
+    \item Hop length: 256 samples
+    \item Number of mel bands: 64
+    \item Frequency range: Up to 10 kHz (as per paper recommendations)
+\end{itemize}
+
+The resulting spectrograms were then:
+\begin{itemize}
+    \item Converted to logarithmic scale to better represent human hearing perception
+    \item Normalized to the range [0,1]
+    \item Resized to a fixed dimension of 64×64 pixels to ensure uniform input size for the CNN
+\end{itemize}
+
+This process transformed each audio sample into an image-like representation where the x-axis represents time, the y-axis represents frequency (on the mel scale), and the pixel intensity represents the amplitude of a particular frequency at a given time.
+
+Our dual feature extraction approach allowed us to compare the effectiveness of 1D spectral features and 2D spectrogram representations for emotion recognition, as well as to explore a combined approach that leverages both feature spaces. 

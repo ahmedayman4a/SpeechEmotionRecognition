@@ -4,8 +4,6 @@ import torch.nn as nn
 class CNN2D(nn.Module):
     def __init__(self, 
                  input_channels=1, 
-                 img_height=64, # Expected input image height
-                 img_width=64,  # Expected input image width
                  dropout_rate=0.3, 
                  activation_module: nn.Module = None):
         super(CNN2D, self).__init__()
@@ -40,20 +38,15 @@ class CNN2D(nn.Module):
         )
         
         self.conv_block4 = nn.Sequential(
-            nn.Conv2d(in_channels=512, out_channels=256, kernel_size=(3,3), stride=1, padding=1),
-            nn.GroupNorm(1, 256),
+            nn.Conv2d(in_channels=512, out_channels=1024, kernel_size=(3,3), stride=1, padding=1),
+            nn.GroupNorm(1, 1024),
             activation_module,
             nn.MaxPool2d(kernel_size=(2,2), stride=2, ceil_mode=True), # H,W_out = ceil(8/2)=4
             nn.Dropout(dropout_rate)
         )
 
-        self.flatten = nn.Flatten()
-        # Expected flattened output: 256 (channels) * 4 (H) * 4 (W) = 4096
+        self.global_avg_pool = nn.AdaptiveAvgPool2d((1, 1))
 
-        # Helper to verify output size during init if needed
-        # self._feature_size = self._get_conv_output_size(input_channels, img_height, img_width)
-        # if self._feature_size != 4096:
-        #     print(f"Warning: CNN2D calculated feature size is {self._feature_size}, expected 4096.")
 
     def _get_conv_output_size(self, input_channels, img_h, img_w):
         # For verification
@@ -63,7 +56,8 @@ class CNN2D(nn.Module):
             x = self.conv_block2(x)
             x = self.conv_block3(x)
             x = self.conv_block4(x)
-            x = self.flatten(x)
+            x = self.global_avg_pool(x)
+            x = torch.flatten(x, 1) # Flatten after GAP to get (N, C)
             return x.shape[1]
 
     def forward(self, x):
@@ -72,25 +66,26 @@ class CNN2D(nn.Module):
         x = self.conv_block2(x)
         x = self.conv_block3(x)
         x = self.conv_block4(x)
-        x = self.flatten(x) # Output: (N, 4096)
+        x = self.global_avg_pool(x) # Output: (N, 1024, 1, 1)
+        x = torch.flatten(x, 1)   # Output: (N, 1024)
         return x
 
 if __name__ == '__main__':
     # Test with ReLU (default, as per paper summary)
-    model2d_relu = CNN2D(input_channels=1, img_height=64, img_width=64)
+    model2d_relu = CNN2D(input_channels=1)
     dummy_input_2d = torch.randn(4, 1, 64, 64)
     output_2d_relu = model2d_relu(dummy_input_2d)
     print(f"CNN2D (ReLU) input shape: {dummy_input_2d.shape}")
     print(f"CNN2D (ReLU) output shape: {output_2d_relu.shape}")
-    assert output_2d_relu.shape == (4, 4096), f"Expected output shape (4, 4096), got {output_2d_relu.shape}"
+    assert output_2d_relu.shape == (4, 1024), f"Expected output shape (4, 1024), got {output_2d_relu.shape}" # Updated assertion
     print("CNN2D (ReLU) test passed.")
 
     # Test with SiLU (as per user's initial preference)
-    model2d_silu = CNN2D(input_channels=1, img_height=64, img_width=64, activation_module=nn.SiLU())
+    model2d_silu = CNN2D(input_channels=1, activation_module=nn.SiLU())
     output_2d_silu = model2d_silu(dummy_input_2d)
     print(f"CNN2D (SiLU) input shape: {dummy_input_2d.shape}")
     print(f"CNN2D (SiLU) output shape: {output_2d_silu.shape}")
-    assert output_2d_silu.shape == (4, 4096), f"Expected output shape (4, 4096), got {output_2d_silu.shape}"
+    assert output_2d_silu.shape == (4, 1024), f"Expected output shape (4, 1024), got {output_2d_silu.shape}" # Updated assertion
     print("CNN2D (SiLU) test passed.")
     # Verify actual output size from an instance
     # print(f"Calculated output size for ReLU model: {model2d_relu._get_conv_output_size(1, 64, 64)}")

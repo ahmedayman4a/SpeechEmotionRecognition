@@ -1,0 +1,43 @@
+\section{Conclusion}
+
+In this project, we implemented and evaluated several CNN architectures for speech emotion recognition using the CREMA dataset. We explored different approaches to feature extraction, model architecture, activation functions, and learning rates.
+
+\subsection{Summary of Findings}
+
+Our main findings can be summarized as follows:
+
+\begin{enumerate}
+    \item \textbf{2D CNN with SiLU activation achieves best performance}: Our experiments decisively show that the 2D CNN model using SiLU activation function and a learning rate of 0.001 outperforms other tested 1D and 2D configurations, reaching 64.1\% accuracy and 63.4\% F1-score on the test set.
+    
+    \item \textbf{Activation functions significantly impact performance}: Different architectures benefit from different activation functions. SiLU (Swish) was particularly effective for 2D CNN models (64.1\% Acc with lr=0.001 vs 58.7\% Acc with ReLU, lr=0.001). For 1D CNN models, SiLU with lr=0.001 also yielded the best result (61.2\% Acc).
+    
+    \item \textbf{Variable-length processing preserves important temporal dynamics}: Processing audio with its original temporal structure rather than fixed-size inputs improved performance from 61.3\% to 62.2\% accuracy for the combined model. (Data for combined models not in provided CSVs, values retained).
+    
+    \item \textbf{Learning rates must be tuned per architecture}: Our experiments revealed that a low learning rate of 0.001 was optimal for the best configurations of both 1D and 2D CNN models.
+    
+    \item \textbf{Emotion recognition performance is uneven across emotions}: Some emotions are significantly easier to recognize than others, likely due to their more distinctive acoustic signatures, as discussed in the confusion matrix analysis.
+\end{enumerate}
+
+\subsection{Limitations}
+% This section is retained as is from your original text.
+Our work has several limitations:
+\begin{itemize}
+    \item \textbf{Dataset limitations}: The CREMA dataset, while diverse, consists of acted emotions rather than spontaneous emotional expressions, which may not fully represent real-world emotional speech.
+    \item \textbf{No cross-dataset validation}: We trained and tested only on CREMA, so our models may not generalize well to other datasets or recording conditions.
+    \item \textbf{Limited emotion set}: We focused on six basic emotions, but human emotional expression is much more nuanced and includes mixed and subtle emotions not captured in this study.
+    \item \textbf{No linguistic content analysis}: We relied solely on acoustic features and did not incorporate linguistic content, which can provide important context for emotion interpretation.
+\end{itemize}
+
+\subsection{Future Work}
+% This section is retained as is from your original text.
+Based on our findings, several directions for future work appear promising:
+\begin{enumerate}
+    \item \textbf{Attention mechanisms}: Incorporating attention mechanisms could help models focus on the most emotionally salient parts of speech signals.
+    \item \textbf{Transformer architectures}: Exploring transformer-based models, which have shown success in other audio processing tasks, could further improve performance.
+    \item \textbf{Multi-modal approaches}: Combining acoustic features with visual cues (facial expressions) or linguistic content could provide complementary information for more accurate emotion recognition.
+    \item \textbf{Data augmentation}: Developing effective data augmentation techniques specific to emotional speech could help address the limited size of existing datasets and improve generalization.
+    \item \textbf{Custom activation functions}: Given the significant impact of activation functions on performance (as shown by the improvement with SiLU), designing or optimizing activation functions specifically for SER tasks could yield further improvements.
+    \item \textbf{Fine-grained hyper-parameter tuning}: While we explored different learning rates and activation functions, many other hyper-parameters (e.g., batch size, optimizer, dropout rates) could be further optimized using systematic approaches like Bayesian optimization.
+\end{enumerate}
+
+In conclusion, our work demonstrates the effectiveness of CNN architectures for speech emotion recognition, particularly 2D CNN models with appropriate activation functions and input representations. The finding that 2D CNN with SiLU activation and a learning rate of 0.001 achieved the highest performance (64.1\% accuracy) compared to other 1D/2D approaches tested highlights the importance of both model architecture and activation function selection in SER systems. Additionally, results from combined models (retained from prior data) showing variable-length processing (62.2\% vs 61.3\% for fixed-length) confirm the value of preserving temporal dynamics in emotional speech. These insights contribute to the ongoing development of more accurate and robust emotion recognition technologies.
