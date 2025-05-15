@@ -97,12 +97,12 @@ This project uses the [CREMA-D dataset](https://github.com/CheyneyComputerScienc
 
 ## Results
 
-| Model                   | Activation | Learning Rate | Accuracy  | F1-Score  | Precision* |
-| ----------------------- | ---------- | ------------- | --------- | --------- | ---------- |
-| 2D CNN                  | SiLU       | 0.001         | **64.1%** | **0.634** | **0.643**  |
-| Combined (var. length)† | SiLU       | 0.001         | 62.2%     | 0.619     | 0.625      |
-| 1D CNN                  | SiLU       | 0.001         | 61.2%     | 0.606     | 0.610      |
-| Combined (fixed size)†  | SiLU       | 0.001         | 61.3%     | 0.608     | 0.614      |
+| Model                  | Activation | Learning Rate | Accuracy  | F1-Score  | Precision* |
+| ---------------------- | ---------- | ------------- | --------- | --------- | ---------- |
+| 2D CNN                 | SiLU       | 0.001         | **64.1%** | **0.634** | **0.643**  |
+| Combined (var. length) | SiLU       | 0.001         | 62.2%     | 0.619     | 0.625      |
+| 1D CNN                 | SiLU       | 0.001         | 61.2%     | 0.606     | 0.610      |
+| Combined (fixed size)  | SiLU       | 0.001         | 61.3%     | 0.608     | 0.614      |
 
 ## Key Findings
 
