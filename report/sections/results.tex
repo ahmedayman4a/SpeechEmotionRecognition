@@ -26,14 +26,7 @@ Surprisingly, the 2D CNN with SiLU activation achieved the highest accuracy and 
 
 \subsection{Effect of Activation Functions and Learning Rates}
 
-We analyzed the impact of different activation functions (ReLU, SiLU, ELU) and learning rates (0.001, 0.01, 0.1) on model performance. Figure \ref{fig:activation_lr_heatmap} shows the test accuracy across all configurations.
-
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=0.9\textwidth]{images/activation_lr_heatmap.png}
-    \caption{Heatmap of test accuracy across different activation functions and learning rates for each model architecture}
-    \label{fig:activation_lr_heatmap}
-\end{figure}
+We analyzed the impact of different activation functions (ReLU, SiLU, ELU) and learning rates (0.001, 0.01, 0.1) on model performance.
 
 The results indicate that:
 
@@ -45,7 +38,7 @@ The results indicate that:
 
 \begin{table}[h]
 \centering
-\caption{Updated Performance of 2D CNN Models Based on CSV Data}
+\caption{Performance of 2D CNN Models with different parameters}
 \label{tab:2d_results}
 \begin{tabular}{@{}lcc@{}}
 \toprule
@@ -67,7 +60,7 @@ lr0.1-ELU-2D & 43.7\% & 0.429 \\
 
 \begin{table}[h]
 \centering
-\caption{Updated Performance of 1D CNN Models Based on CSV Data}
+\caption{Performance of 1D CNN Models with different parameters}
 \label{tab:1d_results}
 \begin{tabular}{@{}lcc@{}}
 \toprule
